@@ -83,7 +83,12 @@ void I2cEncoder::update() {
     } else {
       if(!signalGood) {
         lastErrorTime = millis();
-        trusted = false;
+        if(trusted) {
+          trusted = false;
+          SERIAL_ECHO("Error detected on ");
+          SERIAL_ECHO(axis_codes[encoderAxis]);
+          SERIAL_ECHO(" axis encoder. Disengaging error correction until module is trusted again.");
+        }
       } else {
 
         //if the magnetic strength has been good for a certain time, start trusting the module again
@@ -94,6 +99,11 @@ void I2cEncoder::update() {
           //idea of where it is to re-initialise
           set_zeroed();
           zeroOffset = -(long) (st_get_axis_position_mm(encoderAxis) * ENCODER_TICKS_PER_MM);
+
+
+          SERIAL_ECHO("Untrusted encoder module on ");
+          SERIAL_ECHO(axis_codes[encoderAxis]);
+          SERIAL_ECHO(" axis has been error-free for set duration, reinstating error correction.");
         }
       }
 
