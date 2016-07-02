@@ -46,7 +46,7 @@ void I2cEncoder::init(AxisEnum axis, byte address) {
   SERIAL_ECHO("Encoder on ");
   SERIAL_ECHO(axis_codes[get_axis()]);
   SERIAL_ECHO(" axis, address = ");
-  SERIAL_ECHOLN(address);
+  SERIAL_ECHOLN((int) address);
 }
 
 void I2cEncoder::update() {
