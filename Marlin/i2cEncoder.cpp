@@ -36,10 +36,17 @@
 //  position = 0;
 //}
 
+
+const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
+
 void I2cEncoder::init(AxisEnum axis, byte address) {
   set_axis(axis);
   set_address(address);
   initialised = true;
+  SERIAL_ECHO("Encoder on ");
+  SERIAL_ECHO(axis_codes[get_axis()]);
+  SERIAL_ECHO(" axis, address = ");
+  SERIAL_ECHOLN(address);
 }
 
 void I2cEncoder::update() {
@@ -224,6 +231,10 @@ void I2cEncoder::set_zeroed() {
 
 }
 
+AxisEnum I2cEncoder::get_axis() {
+  return encoderAxis;
+}
+
 
 
 EncoderManager::EncoderManager() {
@@ -270,5 +281,13 @@ void EncoderManager::init() {
 void EncoderManager::update() {
   for(byte i = 0; i < NUM_AXIS; i++) {
     encoderArray[i].update(); 
+  }
+}
+
+void EncoderManager::homed(AxisEnum axis) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].set_homed();
+    } 
   }
 }

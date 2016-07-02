@@ -99,9 +99,9 @@
  * Babystepping
  */
 #if ENABLED(BABYSTEPPING)
-  #if DISABLED(ULTRA_LCD)
-    #error BABYSTEPPING requires an LCD controller.
-  #endif
+  //#if DISABLED(ULTRA_LCD)
+  //  #error BABYSTEPPING requires an LCD controller.
+  //#endif
   #if ENABLED(SCARA)
     #error BABYSTEPPING is not implemented for SCARA yet.
   #endif

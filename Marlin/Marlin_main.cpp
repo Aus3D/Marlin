@@ -45,6 +45,10 @@
   #include "mesh_bed_leveling.h"
 #endif
 
+#if ENABLED(I2C_ENCODERS_ENABLED)
+  #include "i2cEncoder.h"
+#endif
+
 #include "ultralcd.h"
 #include "planner.h"
 #include "stepper.h"
@@ -485,6 +489,11 @@ static bool send_ok[BUFSIZE];
   #define KEEPALIVE_STATE(n) ;
 #endif // HOST_KEEPALIVE_FEATURE
 
+
+#if ENABLED(I2C_ENCODERS_ENABLED)
+    EncoderManager i2cEncoderManager = EncoderManager();
+#endif
+
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************
@@ -854,6 +863,10 @@ void setup() {
   #ifdef STAT_LED_BLUE
     pinMode(STAT_LED_BLUE, OUTPUT);
     digitalWrite(STAT_LED_BLUE, LOW); // turn it off
+  #endif
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.init();
   #endif
 }
 
@@ -1379,6 +1392,11 @@ static void set_axis_is_at_home(AxisEnum axis) {
       SERIAL_ECHOLNPGM(")");
     }
   #endif
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.homed(axis);
+  #endif
+
 }
 
 /**
@@ -7749,6 +7767,11 @@ void idle(
   );
   host_keepalive();
   lcd_update();
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.update();
+  #endif
+
 }
 
 /**

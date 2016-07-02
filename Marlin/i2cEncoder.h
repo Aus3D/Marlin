@@ -20,45 +20,6 @@
  *
  */
 
-//===========================================================================
-//============================ I2C Encoder Settings =========================
-//===========================================================================
-
-//this section should be moved to Configuration.h at some stage
-#define I2C_ENCODERS_ENABLED
-
-#if defined(I2C_ENCODERS_ENABLED)
-
-//Enable and configure encoders
-#define I2C_ENCODER_1_ADDR I2C_ENCODER_PRESET_ADDR_X
-#define I2C_ENCODER_1_AXIS X_AXIS
-
-#define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
-#define I2C_ENCODER_2_AXIS Y_AXIS
-
-#define I2C_ENCODER_3_ADDR I2C_ENCODER_PRESET_ADDR_Z
-#define I2C_ENCODER_3_AXIS Z_AXIS
-
-#define ENCODER_TICKS_PER_MM 2048
-
-
-//Configure error correction
-#define AXIS_ERROR_THRESHOLD_ABORT 100.0  //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
-#define AXIS_ERROR_THRESHOLD_CORRECT 0.050    //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
-#define STABLE_TIME_UNTIL_TRUSTED 10000 //after an error, there must be no errors for this period (ms) before the encoder is trusted again
-
-#define ERROR_CORRECT_METHOD 1
-#define STEPRATE 1
-
-#endif
-
-
-
-
-
-
-
-
 #if defined(I2C_ENCODERS_ENABLED)
 
 #ifndef I2CENC_H
@@ -66,7 +27,7 @@
 
 #include "macros.h"
 
-#define BABYSTEPPING    //babysteppping needs to be enabled for error correction to work
+//#define BABYSTEPPING    //babysteppping needs to be enabled for error correction to work
 
 //I2C defines / enums etc
 #define I2C_MAG_SIG_GOOD 0
@@ -108,8 +69,6 @@ void report_encoder_positions_mm(AxisEnum);
 
 void calculate_axis_steps_per_unit(AxisEnum, int);
 
-const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
-
 class I2cEncoder {
     private:
 
@@ -141,6 +100,8 @@ class I2cEncoder {
 
         void set_axis(AxisEnum axis);
         void set_address(byte address);
+
+        AxisEnum get_axis();
 };
 
 class EncoderManager {
@@ -151,6 +112,7 @@ class EncoderManager {
         EncoderManager();
         void init();
         void update();
+        void homed(AxisEnum axis);
 
 };
 
