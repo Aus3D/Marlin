@@ -125,13 +125,17 @@ void I2cEncoder::set_address(byte address) {
 }
 
 void I2cEncoder::set_homed() {
-  this->zeroOffset = get_raw_count();
-  this->homed = true;
-  this->trusted = true;
-  SERIAL_ECHO(axis_codes[encoderAxis]);
-  SERIAL_ECHO(" axis encoder homed, offset of ");
-  SERIAL_ECHO(zeroOffset);
-  SERIAL_ECHOLN(" ticks.");
+  if(initialised) {
+    this->zeroOffset = get_raw_count();
+    this->homed = true;
+    this->trusted = true;
+    #if defined(ENCODER_DEBUG_ECHOS)
+      SERIAL_ECHO(axis_codes[encoderAxis]);
+      SERIAL_ECHO(" axis encoder homed, offset of ");
+      SERIAL_ECHO(zeroOffset);
+      SERIAL_ECHOLN(" ticks.");
+    #endif  
+    }
 }
 
 bool I2cEncoder::passes_test(bool report) {
