@@ -27,16 +27,6 @@
 
 #include <Wire.h>
 
-//I2cEncoder::I2cEncoder() {
-//  set_axis(I2C_ENCODER_DEF_AXIS);
-//  set_address(I2C_ENCODER_DEF_ADDR);
-//  homed = false;
-//  trusted = false;
-//  initialised = false;
-//  position = 0;
-//}
-
-
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
 
 void I2cEncoder::init(AxisEnum axis, byte address) {
@@ -51,34 +41,28 @@ void I2cEncoder::init(AxisEnum axis, byte address) {
 
 void I2cEncoder::update() {
 
-  //check encoder data is valid
+  //check encoder is set up and active
   if(initialised && homed) {
     bool signalGood = passes_test(false);
 
-
+    //check encoder data is good
     if(signalGood && trusted) {
-
 
       //get latest position
       position = get_position();
-
-
 
       //check error
       double error = get_axis_error_mm(false);
 
       #if defined(AXIS_ERROR_THRESHOLD_ABORT)
-
         if(error > AXIS_ERROR_THRESHOLD_ABORT) {
           kill("Significant Error");
         }
-
       #endif
 
       if(error > AXIS_ERROR_THRESHOLD_CORRECT) {
         babystepsTodo[encoderAxis] -= sgn(error) * STEPRATE;
       }
-
 
     } else {
       if(!signalGood) {
@@ -106,14 +90,8 @@ void I2cEncoder::update() {
           SERIAL_ECHO(" axis has been error-free for set duration, reinstating error correction.");
         }
       }
-
     } 
-}
-
-
-
-
-
+  }
 }
 
 void I2cEncoder::set_axis(AxisEnum axis) {
@@ -241,19 +219,15 @@ byte I2cEncoder::get_magnetic_strength() {
   }
 
 void I2cEncoder::set_zeroed() {
-
   //Set module to report magnetic strength
   Wire.beginTransmission(i2cAddress);
   Wire.write(1);
   Wire.endTransmission();
-
 }
 
 AxisEnum I2cEncoder::get_axis() {
   return encoderAxis;
 }
-
-
 
 EncoderManager::EncoderManager() {
   Wire.begin(); // We use no address so we will join the BUS as the master
