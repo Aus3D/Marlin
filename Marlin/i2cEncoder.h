@@ -88,7 +88,7 @@ class I2cEncoder {
         unsigned long lastErrorTime;
 
 
-        double mmFromCount(long count);
+        
 
     public:
 
@@ -97,6 +97,7 @@ class I2cEncoder {
         void set_homed();
         double get_axis_error_mm(bool report);
         double get_position_mm();
+        double mm_from_count(long count);
         long get_position();
         long get_raw_count();
         void set_led_param(byte, byte, byte);
@@ -122,6 +123,8 @@ class EncoderManager {
         void init();
         void update();
         void homed(AxisEnum axis);
+        void report_position(AxisEnum axis, bool units, bool noOffset);
+        void report_status(AxisEnum axis);
 
 };
 

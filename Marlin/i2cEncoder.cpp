@@ -99,7 +99,7 @@ void I2cEncoder::update() {
         SERIAL_ECHO("Error detected on ");
         SERIAL_ECHO(axis_codes[encoderAxis]);
         SERIAL_ECHO(" axis encoder. Disengaging error correction until module is trusted again.");
-        
+
       }
     }
   }
@@ -157,7 +157,7 @@ double I2cEncoder::get_axis_error_mm(bool report) {
   double target, actual, error;
 
   target = st_get_axis_position_mm(encoderAxis);
-  actual = mmFromCount(position);
+  actual = mm_from_count(position);
   error = actual - target;
 
   if(report) {
@@ -176,10 +176,10 @@ double I2cEncoder::get_axis_error_mm(bool report) {
 }
 
 double I2cEncoder::get_position_mm() {
-  return mmFromCount(get_position());
+  return mm_from_count(get_position());
 }
 
-double I2cEncoder::mmFromCount(long count) {
+double I2cEncoder::mm_from_count(long count) {
   return (double) count / ENCODER_TICKS_PER_MM;
 }
 
@@ -300,3 +300,39 @@ void EncoderManager::homed(AxisEnum axis) {
     } 
   }
 }
+
+void EncoderManager::report_position(AxisEnum axis, bool units, bool noOffset) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis && encoderArray[i].get_active()) {
+      if(units) {
+        if(noOffset) {
+          SERIAL_ECHO(encoderArray[i].mm_from_count(encoderArray[i].get_raw_count()));
+        } else {
+          SERIAL_ECHO(encoderArray[i].get_position_mm());
+        }
+      } else {
+        if(noOffset) {
+          SERIAL_ECHO(encoderArray[i].get_raw_count());
+        } else {
+          SERIAL_ECHO(encoderArray[i].get_position());
+        }
+      }
+    } else {
+      SERIAL_ECHO("Encoder not operational");
+    }
+  }
+}
+
+
+void EncoderManager::report_status(AxisEnum axis) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis && encoderArray[i].get_active()) {
+      encoderArray[i].passes_test(true);    
+    } else {
+      SERIAL_ECHO("Encoder not operational");
+    }
+  }
+}
+
+
+

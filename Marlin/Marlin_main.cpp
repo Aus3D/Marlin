@@ -7052,6 +7052,18 @@ void process_next_command() {
 
       #endif // HAS_MICROSTEPS
 
+      #if ENABLED(I2C_ENCODERS_ENABLED)
+        case 860: // M860 Report encoder module position
+          gcode_M860();
+          break;
+
+        case 861: // M351 Report encoder module status
+          gcode_M861();
+          break;
+
+
+      #endif
+
       case 999: // M999: Restart after being Stopped
         gcode_M999();
         break;
@@ -8065,3 +8077,45 @@ void calculate_volumetric_multipliers() {
   for (int i = 0; i < EXTRUDERS; i++)
     volumetric_multiplier[i] = calculate_volumetric_multiplier(filament_size[i]);
 }
+
+
+#if ENABLED(I2C_ENCODERS_ENABLED)
+
+  inline void gcode_M860() {
+    bool noOffset, units;
+    AxisEnum selectedAxis;
+
+    if (code_seen('U') || code_seen('u')) {
+      units = true;
+    } else {
+      units = false;
+    }
+
+    if (code_seen('O') || code_seen('o')) {
+      noOffset = true;
+    } else {
+      noOffset = false;
+    }
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.report_position(selectedAxis,units,noOffset);
+  }
+
+  inline void gcode_M861() {
+    AxisEnum selectedAxis;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.report_status(selectedAxis);
+  }
+
+#endif //I2C_ENCODERS_ENABLED
