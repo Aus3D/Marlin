@@ -219,8 +219,8 @@ byte I2cEncoder::get_magnetic_strength() {
 
     //Set module to report magnetic strength
     Wire.beginTransmission((int)i2cAddress);
-    Wire.write(3);
-    Wire.write(1);
+    Wire.write(I2C_ENC_REPORT_MODE_REGISTER);
+    Wire.write(I2C_ENC_REPORT_MODE_STRENGTH);
     Wire.endTransmission();
 
     //Read value
@@ -233,8 +233,8 @@ byte I2cEncoder::get_magnetic_strength() {
 
     //Set module back to normal (distance) mode
     Wire.beginTransmission((int)i2cAddress);
-    Wire.write(3);
-    Wire.write(0);
+    Wire.write(I2C_ENC_REPORT_MODE_REGISTER);
+    Wire.write(I2C_ENC_REPORT_MODE_DISTANCE);
     Wire.endTransmission();
 
     return reading;
