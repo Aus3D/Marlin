@@ -200,7 +200,11 @@ long I2cEncoder::get_raw_count() {
     index += 1;
   }
 
-  return encoderCount.val;
+  if(invertDirection) {
+    return -encoderCount.val;
+  } else {
+    return encoderCount.val;
+  }
 
 }
 
@@ -248,6 +252,14 @@ void I2cEncoder::set_active(bool a) {
   active = a;
 }
 
+bool I2cEncoder::get_inverted() {
+  return invertDirection;
+}
+
+void I2cEncoder::set_inverted(bool inv) {
+  invertDirection = inv;
+}
+
 EncoderManager::EncoderManager() {
   Wire.begin(); // We use no address so we will join the BUS as the master
 
@@ -259,32 +271,48 @@ void EncoderManager::init() {
   #if defined(I2C_ENCODER_1_ADDR) && defined(I2C_ENCODER_1_AXIS)
     encoderArray[index].init(I2C_ENCODER_1_AXIS,I2C_ENCODER_1_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
+    #if defined(I2C_ENCODER_1_INVERT)
+      encoderArray[index].set_inverted(true);
+    #endif
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_2_ADDR) && defined(I2C_ENCODER_2_AXIS)
     encoderArray[index].init(I2C_ENCODER_2_AXIS,I2C_ENCODER_2_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
+    #if defined(I2C_ENCODER_2_INVERT)
+      encoderArray[index].set_inverted(true);
+    #endif
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_3_ADDR) && defined(I2C_ENCODER_3_AXIS)
     encoderArray[index].init(I2C_ENCODER_3_AXIS,I2C_ENCODER_3_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
+    #if defined(I2C_ENCODER_3_INVERT)
+      encoderArray[index].set_inverted(true);
+    #endif
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_4_ADDR) && defined(I2C_ENCODER_4_AXIS)
     encoderArray[index].init(I2C_ENCODER_4_AXIS,I2C_ENCODER_4_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
+    #if defined(I2C_ENCODER_4_INVERT)
+      encoderArray[index].set_inverted(true);
+    #endif
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_5_ADDR) && defined(I2C_ENCODER_5_AXIS)
     encoderArray[index].init(I2C_ENCODER_5_AXIS,I2C_ENCODER_5_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
+    #if defined(I2C_ENCODER_5_INVERT)
+      encoderArray[index].set_inverted(true);
+    #endif
     index++;
-  #endif  
+  #endif
+
 }
 
 void EncoderManager::update() {

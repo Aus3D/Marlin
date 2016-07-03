@@ -86,6 +86,7 @@ class I2cEncoder {
         long position;
         double positionMm;
         unsigned long lastErrorTime;
+        bool invertDirection = false;
 
 
         
@@ -110,6 +111,9 @@ class I2cEncoder {
 
         void set_active(bool);
         bool get_active();
+
+        void set_inverted(bool);
+        bool get_inverted();
 
         AxisEnum get_axis();
 };
