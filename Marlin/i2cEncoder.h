@@ -27,7 +27,7 @@
 
 #include "macros.h"
 
-//#define BABYSTEPPING    //babysteppping needs to be enabled for error correction to work
+#define ENCODER_DEBUG_ECHOS
 
 //I2C defines / enums etc
 #define I2C_MAG_SIG_GOOD 0
