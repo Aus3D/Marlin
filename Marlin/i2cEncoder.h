@@ -77,6 +77,7 @@ class I2cEncoder {
     private:
 
         byte i2cAddress = I2C_ENCODER_DEF_ADDR;
+        AxisEnum encoderAxis = I2C_ENCODER_DEF_AXIS;
         long zeroOffset = 0;
         bool homed = false;
         bool trusted = false;
@@ -84,7 +85,7 @@ class I2cEncoder {
         long position;
         double positionMm;
         unsigned long lastErrorTime;
-        AxisEnum encoderAxis = I2C_ENCODER_DEF_AXIS;
+
 
         double mmFromCount(long count);
 
@@ -119,9 +120,6 @@ class EncoderManager {
         void homed(AxisEnum axis);
 
 };
-
-
-
 
 
 int get_encoder_axis_address(AxisEnum);

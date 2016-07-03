@@ -79,9 +79,13 @@ void I2cEncoder::update() {
         if(millis() - lastErrorTime > STABLE_TIME_UNTIL_TRUSTED) {
           trusted = true;
 
-          //the encoder likely lost it's place when the error occured, so we'll reset and use the printer's
+          //the encoder likely lost its place when the error occured, so we'll reset and use the printer's
           //idea of where it is to re-initialise
+
+          //reset module's offset to zero (so current position is homed / zero)
           set_zeroed();
+
+          //shift position from zero to current position
           zeroOffset = -(long) (st_get_axis_position_mm(encoderAxis) * ENCODER_TICKS_PER_MM);
 
 
@@ -266,8 +270,6 @@ void EncoderManager::init() {
     encoderArray[index].passes_test(true);
     index++;
   #endif  
-
-
 }
 
 void EncoderManager::update() {
