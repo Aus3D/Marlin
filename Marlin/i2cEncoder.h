@@ -82,6 +82,7 @@ class I2cEncoder {
         bool homed = false;
         bool trusted = false;
         bool initialised = false;
+        bool active = false;
         long position;
         double positionMm;
         unsigned long lastErrorTime;
@@ -105,6 +106,9 @@ class I2cEncoder {
 
         void set_axis(AxisEnum axis);
         void set_address(byte address);
+
+        void set_active(bool);
+        bool get_active();
 
         AxisEnum get_axis();
 };

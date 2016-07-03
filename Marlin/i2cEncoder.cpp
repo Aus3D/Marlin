@@ -42,7 +42,7 @@ void I2cEncoder::init(AxisEnum axis, byte address) {
 void I2cEncoder::update() {
 
   //check encoder is set up and active
-  if(initialised && homed) {
+  if(initialised && homed && active) {
     bool signalGood = passes_test(false);
 
     //check encoder data is good
@@ -107,7 +107,7 @@ void I2cEncoder::set_address(byte address) {
 }
 
 void I2cEncoder::set_homed() {
-  if(initialised) {
+  if(active) {
     this->zeroOffset = get_raw_count();
     this->homed = true;
     this->trusted = true;
@@ -233,6 +233,14 @@ AxisEnum I2cEncoder::get_axis() {
   return encoderAxis;
 }
 
+bool I2cEncoder::get_active() {
+  return active;
+}
+
+void I2cEncoder::set_active(bool a) {
+  active = a;
+}
+
 EncoderManager::EncoderManager() {
   Wire.begin(); // We use no address so we will join the BUS as the master
 
@@ -243,31 +251,31 @@ void EncoderManager::init() {
 
   #if defined(I2C_ENCODER_1_ADDR) && defined(I2C_ENCODER_1_AXIS)
     encoderArray[index].init(I2C_ENCODER_1_AXIS,I2C_ENCODER_1_ADDR);
-    encoderArray[index].passes_test(true);
+    encoderArray[index].set_active(encoderArray[index].passes_test(true));
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_2_ADDR) && defined(I2C_ENCODER_2_AXIS)
     encoderArray[index].init(I2C_ENCODER_2_AXIS,I2C_ENCODER_2_ADDR);
-    encoderArray[index].passes_test(true);
+    encoderArray[index].set_active(encoderArray[index].passes_test(true));
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_3_ADDR) && defined(I2C_ENCODER_3_AXIS)
     encoderArray[index].init(I2C_ENCODER_3_AXIS,I2C_ENCODER_3_ADDR);
-    encoderArray[index].passes_test(true);
+    encoderArray[index].set_active(encoderArray[index].passes_test(true));
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_4_ADDR) && defined(I2C_ENCODER_4_AXIS)
     encoderArray[index].init(I2C_ENCODER_4_AXIS,I2C_ENCODER_4_ADDR);
-    encoderArray[index].passes_test(true);
+    encoderArray[index].set_active(encoderArray[index].passes_test(true));
     index++;
   #endif  
 
   #if defined(I2C_ENCODER_5_ADDR) && defined(I2C_ENCODER_5_AXIS)
     encoderArray[index].init(I2C_ENCODER_5_AXIS,I2C_ENCODER_5_ADDR);
-    encoderArray[index].passes_test(true);
+    encoderArray[index].set_active(encoderArray[index].passes_test(true));
     index++;
   #endif  
 }
