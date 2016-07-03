@@ -46,32 +46,25 @@ void I2cEncoder::update() {
     bool signalGood = passes_test(false);
 
     //check encoder data is good
-    if(signalGood && trusted) {
+    if(signalGood) {
 
-      //get latest position
-      position = get_position();
+      //if data is historically good, proceed
+      if(trusted) {
 
-      //check error
-      double error = get_axis_error_mm(false);
+        //get latest position
+        position = get_position();
 
-      #if defined(AXIS_ERROR_THRESHOLD_ABORT)
-        if(error > AXIS_ERROR_THRESHOLD_ABORT) {
-          kill("Significant Error");
-        }
-      #endif
+        //check error
+        double error = get_axis_error_mm(false);
 
-      if(error > AXIS_ERROR_THRESHOLD_CORRECT) {
-        babystepsTodo[encoderAxis] -= sgn(error) * STEPRATE;
-      }
+        #if defined(AXIS_ERROR_THRESHOLD_ABORT)
+          if(error > AXIS_ERROR_THRESHOLD_ABORT) {
+            kill("Significant Error");
+          }
+        #endif
 
-    } else {
-      if(!signalGood) {
-        lastErrorTime = millis();
-        if(trusted) {
-          trusted = false;
-          SERIAL_ECHO("Error detected on ");
-          SERIAL_ECHO(axis_codes[encoderAxis]);
-          SERIAL_ECHO(" axis encoder. Disengaging error correction until module is trusted again.");
+        if(error > AXIS_ERROR_THRESHOLD_CORRECT) {
+          babystepsTodo[encoderAxis] -= sgn(error) * STEPRATE;
         }
       } else {
 
@@ -93,8 +86,22 @@ void I2cEncoder::update() {
           SERIAL_ECHO(axis_codes[encoderAxis]);
           SERIAL_ECHO(" axis has been error-free for set duration, reinstating error correction.");
         }
+
       }
-    } 
+
+      
+
+    } else {
+      
+      lastErrorTime = millis();
+      if(trusted) {
+        trusted = false;
+        SERIAL_ECHO("Error detected on ");
+        SERIAL_ECHO(axis_codes[encoderAxis]);
+        SERIAL_ECHO(" axis encoder. Disengaging error correction until module is trusted again.");
+        
+      }
+    }
   }
 }
 
