@@ -306,30 +306,40 @@ void EncoderManager::report_position(AxisEnum axis, bool units, bool noOffset) {
     if(encoderArray[i].get_axis() == axis && encoderArray[i].get_active()) {
       if(units) {
         if(noOffset) {
-          SERIAL_ECHO(encoderArray[i].mm_from_count(encoderArray[i].get_raw_count()));
+          SERIAL_ECHOLN(encoderArray[i].mm_from_count(encoderArray[i].get_raw_count()));
         } else {
-          SERIAL_ECHO(encoderArray[i].get_position_mm());
+          SERIAL_ECHOLN(encoderArray[i].get_position_mm());
         }
       } else {
         if(noOffset) {
-          SERIAL_ECHO(encoderArray[i].get_raw_count());
+          SERIAL_ECHOLN(encoderArray[i].get_raw_count());
         } else {
-          SERIAL_ECHO(encoderArray[i].get_position());
+          SERIAL_ECHOLN(encoderArray[i].get_position());
         }
       }
-    } else {
-      SERIAL_ECHO("Encoder not operational");
-    }
+      break;
+    } //else {
+      //SERIAL_ECHO("Encoder not operational");
+    //}
   }
 }
 
 
 void EncoderManager::report_status(AxisEnum axis) {
+  bool responded = false;
+
   for(byte i = 0; i < NUM_AXIS; i++) {
-    if(encoderArray[i].get_axis() == axis && encoderArray[i].get_active()) {
+    if(encoderArray[i].get_axis() == axis) {
       encoderArray[i].passes_test(true);    
-    } else {
-      SERIAL_ECHO("Encoder not operational");
+      responded = true;
+      break;
+    //} else {
+      //SERIAL_ECHO("Encoder not operational");
+    }
+
+    if (!responded) {
+      SERIAL_ECHOLN("No encoder configured for given axis!");
+      responded = true;
     }
   }
 }
