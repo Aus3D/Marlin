@@ -8555,6 +8555,10 @@ void idle(
   #if HAS_BUZZER && PIN_EXISTS(BEEPER)
     buzzer.tick();
   #endif
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.update();
+  #endif
 }
 
 /**
