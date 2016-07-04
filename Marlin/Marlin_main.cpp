@@ -45,6 +45,10 @@
   #include "mesh_bed_leveling.h"
 #endif
 
+#if ENABLED(I2C_ENCODERS_ENABLED)
+  #include "i2cEncoder.h"
+#endif
+
 #if ENABLED(BEZIER_CURVE_SUPPORT)
   #include "planner_bezier.h"
 #endif
@@ -551,6 +555,10 @@ static bool send_ok[BUFSIZE];
   #define KEEPALIVE_STATE(n) ;
 #endif // HOST_KEEPALIVE_FEATURE
 
+#if ENABLED(I2C_ENCODERS_ENABLED)
+    EncoderManager i2cEncoderManager = EncoderManager();
+#endif
+
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************
@@ -973,6 +981,10 @@ void setup() {
   #ifdef STAT_LED_BLUE
     pinMode(STAT_LED_BLUE, OUTPUT);
     digitalWrite(STAT_LED_BLUE, LOW); // turn it off
+  #endif
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.init();
   #endif
 
   lcd_init();
@@ -1609,6 +1621,10 @@ static void set_axis_is_at_home(AxisEnum axis) {
       SERIAL_ECHOPAIR("<<< set_axis_is_at_home(", axis_codes[axis]);
       SERIAL_ECHOLNPGM(")");
     }
+  #endif
+
+  #if ENABLED(I2C_ENCODERS_ENABLED)
+    i2cEncoderManager.homed(axis);
   #endif
 }
 
@@ -7700,6 +7716,18 @@ void process_next_command() {
 
       #endif // HAS_MICROSTEPS
 
+      #if ENABLED(I2C_ENCODERS_ENABLED)
+
+        case 860: // M860 Report encoder module position
+          gcode_M860();
+          break;
+
+        case 861: // M351 Report encoder module status
+          gcode_M861();
+          break;
+
+      #endif // I2C_ENCODERS_ENABLED
+
       case 999: // M999: Restart after being Stopped
         gcode_M999();
         break;
@@ -8828,3 +8856,45 @@ void calculate_volumetric_multipliers() {
   for (uint8_t i = 0; i < COUNT(filament_size); i++)
     volumetric_multiplier[i] = calculate_volumetric_multiplier(filament_size[i]);
 }
+
+#if ENABLED(I2C_ENCODERS_ENABLED)
+
+  inline void gcode_M860() {
+    bool noOffset, units;
+    AxisEnum selectedAxis;
+
+    if (code_seen('U') || code_seen('u')) {
+      units = true;
+    } else {
+      units = false;
+    }
+
+    if (code_seen('O') || code_seen('o')) {
+      noOffset = true;
+    } else {
+      noOffset = false;
+    }
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.report_position(selectedAxis,units,noOffset);
+  }
+
+  inline void gcode_M861() {
+    AxisEnum selectedAxis;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.report_status(selectedAxis);
+  }
+
+#endif //I2C_ENCODERS_ENABLED
+

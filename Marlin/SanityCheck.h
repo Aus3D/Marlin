@@ -206,7 +206,7 @@
  * Babystepping
  */
 #if ENABLED(BABYSTEPPING)
-  #if DISABLED(ULTRA_LCD)
+  #if DISABLED(ULTRA_LCD) && DISABLED(I2C_ENCODERS_ENABLED)
     #error "BABYSTEPPING requires an LCD controller."
   #endif
   #if ENABLED(SCARA)
