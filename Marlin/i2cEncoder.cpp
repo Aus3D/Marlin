@@ -73,9 +73,9 @@ void I2cEncoder::update() {
 
         if(abs(error) > AXIS_ERROR_THRESHOLD_CORRECT) {
           if(error>0) {
-            babystepsTodo[encoderAxis] -= STEPRATE;
+            thermalManager.babystepsTodo[encoderAxis] -= STEPRATE;
           } else {
-            babystepsTodo[encoderAxis] += STEPRATE;
+            thermalManager.babystepsTodo[encoderAxis] += STEPRATE;
           }
 
         }
@@ -92,7 +92,7 @@ void I2cEncoder::update() {
           set_zeroed();
 
           //shift position from zero to current position
-          zeroOffset = -(long) (st_get_axis_position_mm(encoderAxis) * ENCODER_TICKS_PER_MM);
+          zeroOffset = -(long) (stepper.get_axis_position_mm(encoderAxis) * ENCODER_TICKS_PER_MM);
 
 
           SERIAL_ECHO("Untrusted encoder module on ");
@@ -177,7 +177,7 @@ bool I2cEncoder::passes_test(bool report, bool &moduleDetected) {
 double I2cEncoder::get_axis_error_mm(bool report) {
   double target, actual, error;
 
-  target = st_get_axis_position_mm(encoderAxis);
+  target = stepper.get_axis_position_mm(encoderAxis);
   actual = mm_from_count(position);
   error = actual - target;
 
