@@ -919,6 +919,14 @@ void Stepper::set_e_position(const long& e) {
   CRITICAL_SECTION_END;
 }
 
+void Stepper::set_position(AxisEnum axis, const long& pos) {
+  CRITICAL_SECTION_START;
+
+  count_position[axis] = pos;
+
+  CRITICAL_SECTION_END;
+}
+
 /**
  * Get a stepper's position in steps.
  */

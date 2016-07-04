@@ -72,11 +72,19 @@ void I2cEncoder::update() {
         #endif
 
         if(abs(error) > AXIS_ERROR_THRESHOLD_CORRECT) {
-          if(error>0) {
-            thermalManager.babystepsTodo[encoderAxis] -= STEPRATE;
-          } else {
-            thermalManager.babystepsTodo[encoderAxis] += STEPRATE;
-          }
+          #if defined(ERROR_CORRECT_METHOD_1)
+            if(error>0) {
+              thermalManager.babystepsTodo[encoderAxis] -= STEPRATE;
+            } else {
+              thermalManager.babystepsTodo[encoderAxis] += STEPRATE;
+            }
+          #elif defined (ERROR_CORRECT_METHOD_2) 
+
+
+            stepper.set_position(get_axis(), lround(mm_from_count(position) * planner.axis_steps_per_mm[get_axis()]));
+
+
+          #endif
 
         }
       } else {
