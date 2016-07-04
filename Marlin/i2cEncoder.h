@@ -103,6 +103,7 @@ class I2cEncoder {
         long get_raw_count();
         void set_led_param(byte, byte, byte);
         void set_zeroed();
+        bool passes_test(bool report,bool &moduleDetected);
         bool passes_test(bool report);
         byte get_magnetic_strength();
 

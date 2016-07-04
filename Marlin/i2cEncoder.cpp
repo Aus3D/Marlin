@@ -43,7 +43,12 @@ void I2cEncoder::update() {
 
   //check encoder is set up and active
   if(initialised && homed && active) {
-    bool signalGood = passes_test(false);
+
+    bool moduleDetected;
+
+    //we don't want to stop things just because the encoder missed a message,
+    //so we only care about responses that indicate bad magnetic strength
+    bool signalGood = passes_test(false,moduleDetected);
 
     //check encoder data is good
     if(signalGood) {
@@ -58,13 +63,21 @@ void I2cEncoder::update() {
         double error = get_axis_error_mm(false);
 
         #if defined(AXIS_ERROR_THRESHOLD_ABORT)
-          if(error > AXIS_ERROR_THRESHOLD_ABORT) {
-            kill("Significant Error");
+          if(abs(error) > AXIS_ERROR_THRESHOLD_ABORT) {
+            //kill("Significant Error");
+            SERIAL_ECHO("Error, Kill! ");
+            SERIAL_ECHOLN(error);
+            delay(5000);
           }
         #endif
 
-        if(error > AXIS_ERROR_THRESHOLD_CORRECT) {
-          babystepsTodo[encoderAxis] -= sgn(error) * STEPRATE;
+        if(abs(error) > AXIS_ERROR_THRESHOLD_CORRECT) {
+          if(error>0) {
+            babystepsTodo[encoderAxis] -= STEPRATE;
+          } else {
+            babystepsTodo[encoderAxis] += STEPRATE;
+          }
+
         }
       } else {
 
@@ -84,7 +97,7 @@ void I2cEncoder::update() {
 
           SERIAL_ECHO("Untrusted encoder module on ");
           SERIAL_ECHO(axis_codes[encoderAxis]);
-          SERIAL_ECHO(" axis has been error-free for set duration, reinstating error correction.");
+          SERIAL_ECHOLN(" axis has been error-free for set duration, reinstating error correction.");
         }
 
       }
@@ -98,7 +111,7 @@ void I2cEncoder::update() {
         trusted = false;
         SERIAL_ECHO("Error detected on ");
         SERIAL_ECHO(axis_codes[encoderAxis]);
-        SERIAL_ECHO(" axis encoder. Disengaging error correction until module is trusted again.");
+        SERIAL_ECHOLN(" axis encoder. Disengaging error correction until module is trusted again.");
 
       }
     }
@@ -128,6 +141,11 @@ void I2cEncoder::set_homed() {
 }
 
 bool I2cEncoder::passes_test(bool report) {
+  bool encoderPresent;
+  return (passes_test(report,encoderPresent) && encoderPresent);
+}
+
+bool I2cEncoder::passes_test(bool report, bool &moduleDetected) {
  byte magStrength = get_magnetic_strength();
 
   if(magStrength == I2C_MAG_SIG_BAD) {
@@ -136,12 +154,14 @@ bool I2cEncoder::passes_test(bool report) {
       SERIAL_ECHO(axis_codes[encoderAxis]);
       SERIAL_ECHOLN(" axis magnetic strip not detected!");
     }
+    moduleDetected = true;
     return false; 
   } else if (magStrength == I2C_MAG_SIG_GOOD || magStrength == I2C_MAG_SIG_MID) { 
     if(report) {
       SERIAL_ECHO(axis_codes[encoderAxis]);
       SERIAL_ECHOLN(" axis encoder passes test.");
     }
+    moduleDetected = true;
     return true; 
   } else {
     if(report) {
@@ -149,7 +169,8 @@ bool I2cEncoder::passes_test(bool report) {
       SERIAL_ECHO(axis_codes[encoderAxis]);
       SERIAL_ECHOLN(" axis encoder not detected!");
     }
-    return false;
+    moduleDetected = false;
+    return true;
   }
 }
 
@@ -159,6 +180,10 @@ double I2cEncoder::get_axis_error_mm(bool report) {
   target = st_get_axis_position_mm(encoderAxis);
   actual = mm_from_count(position);
   error = actual - target;
+
+  if (abs(error) > 10000) {
+    error = 0;
+  }
 
   if(report) {
     SERIAL_ECHO(axis_codes[encoderAxis]);
@@ -200,6 +225,8 @@ long I2cEncoder::get_raw_count() {
     index += 1;
   }
 
+  //SERIAL_ECHOLN(encoderCount.val);
+
   if(invertDirection) {
     return -encoderCount.val;
   } else {
@@ -222,7 +249,7 @@ byte I2cEncoder::get_magnetic_strength() {
     byte reading = 99;
 
     reading = Wire.read();
-    //SERIAL_ECHO(reading);
+    //SERIAL_ECHO((int)reading);
 
     //Set module back to normal (distance) mode
     Wire.beginTransmission((int)i2cAddress);
