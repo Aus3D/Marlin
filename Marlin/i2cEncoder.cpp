@@ -116,22 +116,38 @@ void I2cEncoder::update() {
         if(millis() - lastErrorTime > STABLE_TIME_UNTIL_TRUSTED) {
           trusted = true;
 
-          //the encoder likely lost its place when the error occured, so we'll reset and use the printer's
-          //idea of where it is to re-initialise
-
-          //reset module's offset to zero (so current position is homed / zero)
-          set_zeroed();
-
-          //shift position from zero to current position
-          zeroOffset -= (positionInTicks - get_position());
-
-
           SERIAL_ECHO("Untrusted encoder module on ");
           SERIAL_ECHO(axis_codes[encoderAxis]);
           SERIAL_ECHOLN(" axis has been error-free for set duration, reinstating error correction.");
 
+          //the encoder likely lost its place when the error occured, so we'll reset and use the printer's
+          //idea of where it is to re-initialise
+          double position = stepper.get_axis_position_mm(encoderAxis);
+          long positionInTicks = position * ENCODER_TICKS_PER_MM;
+
+          //shift position from zero to current position
+          zeroOffset -= (positionInTicks - get_position());
+
+          #if defined(ENCODER_DEBUG_ECHOS)
+          
+            SERIAL_ECHO("Current position is ");
+            SERIAL_ECHOLN(position);
+
+            SERIAL_ECHO("Position in encoder ticks is ");
+            SERIAL_ECHOLN(positionInTicks);
+
+
+
             SERIAL_ECHO("New zero-offset of ");
             SERIAL_ECHOLN(zeroOffset);
+
+            SERIAL_ECHO("New position reads as ");
+            SERIAL_ECHO(get_position());
+            SERIAL_ECHO("(");
+            SERIAL_ECHO(mm_from_count(get_position()));
+            SERIAL_ECHOLN(")");
+
+          #endif
         }
 
       }
@@ -162,6 +178,9 @@ void I2cEncoder::set_address(byte address) {
 
 void I2cEncoder::set_homed() {
   if(active) {
+    //reset module's offset to zero (so current position is homed / zero)
+    set_zeroed();
+    delay(10);
     this->zeroOffset = get_raw_count();
     this->homed = true;
     this->trusted = true;
