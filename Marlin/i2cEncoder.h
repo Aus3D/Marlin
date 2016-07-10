@@ -51,6 +51,8 @@
 #define I2C_ENCODER_DEF_AXIS X_AXIS
 #define I2C_ENCODER_DEF_ADDR I2C_ENCODER_PRESET_ADDR_X
 
+#define ERROR_THRESHOLD_PROPORTIONAL_SPEED
+
 typedef union{
   volatile long val = 0;
   byte bval[4];
@@ -87,6 +89,8 @@ class I2cEncoder {
         double positionMm;
         unsigned long lastErrorTime;
         bool invertDirection = false;
+        long lastPosition = 0;
+        unsigned long lastPositionTime = 0;
 
 
         
@@ -140,6 +144,11 @@ static inline int8_t sgn(int val) {
  if (val < 0) return -1;
  if (val==0) return 0;
  return 1;
+}
+
+static inline int8_t sgn(double val) {
+    if (val < 0) return -1;
+    return 1;
 }
 
 #endif //I2CENC_H

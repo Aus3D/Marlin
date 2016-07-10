@@ -57,7 +57,19 @@ void I2cEncoder::update() {
       if(trusted) {
 
         //get latest position
+        lastPosition = position;
         position = get_position();
+        unsigned long positionTime = millis();
+
+        #if defined(ERROR_THRESHOLD_PROPORTIONAL_SPEED)
+          unsigned long distance = abs(position - lastPosition);
+          unsigned long deltaTime = positionTime - lastPositionTime;
+          unsigned long speed = distance / deltaTime;
+
+          float threshold = constrain((speed / 50),1,50) * AXIS_ERROR_THRESHOLD_CORRECT;
+        #else
+          float threshold = AXIS_ERROR_THRESHOLD_CORRECT;
+        #endif
 
         //check error
         double error = get_axis_error_mm(false);
@@ -71,22 +83,33 @@ void I2cEncoder::update() {
           }
         #endif
 
-        if(abs(error) > AXIS_ERROR_THRESHOLD_CORRECT) {
+
+
+        if(abs(error) > threshold) {
           #if defined(ERROR_CORRECT_METHOD_1)
-            if(error>0) {
-              thermalManager.babystepsTodo[encoderAxis] -= STEPRATE;
-            } else {
-              thermalManager.babystepsTodo[encoderAxis] += STEPRATE;
-            }
+
+            thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
+
           #elif defined (ERROR_CORRECT_METHOD_2) 
 
+            double axisPosition[NUM_AXIS];
 
-            stepper.set_position(get_axis(), lround(mm_from_count(position) * planner.axis_steps_per_mm[get_axis()]));
+            for(int i = 0; i < NUM_AXIS; i++) {
+              axisPosition[i] = stepper.get_axis_position_mm((AxisEnum)i);
+            }
 
+            axisPosition[get_axis()] = mm_from_count(position);
+            //stepper.set_position(get_axis(), lround(mm_from_count(position) * planner.axis_steps_per_mm[get_axis()]));
+            planner.set_position_mm(axisPosition[X_AXIS],axisPosition[Y_AXIS],axisPosition[Z_AXIS],axisPosition[E_AXIS]);
+            current_position[get_axis()] = mm_from_count(position);
+            //SERIAL_ECHOLN("Correcting error");
 
           #endif
 
         }
+
+
+        lastPositionTime = positionTime;
       } else {
 
         //if the magnetic strength has been good for a certain time, start trusting the module again
@@ -100,12 +123,15 @@ void I2cEncoder::update() {
           set_zeroed();
 
           //shift position from zero to current position
-          zeroOffset = -(long) (stepper.get_axis_position_mm(encoderAxis) * ENCODER_TICKS_PER_MM);
+          zeroOffset -= (positionInTicks - get_position());
 
 
           SERIAL_ECHO("Untrusted encoder module on ");
           SERIAL_ECHO(axis_codes[encoderAxis]);
           SERIAL_ECHOLN(" axis has been error-free for set duration, reinstating error correction.");
+
+            SERIAL_ECHO("New zero-offset of ");
+            SERIAL_ECHOLN(zeroOffset);
         }
 
       }
