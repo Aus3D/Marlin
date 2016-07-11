@@ -20,6 +20,8 @@
  *
  */
 
+#if defined(I2C_ENCODERS_ENABLED)
+
 #include "Marlin.h"
 #include "i2cEncoder.h"
 #include "temperature.h"
@@ -452,5 +454,6 @@ void EncoderManager::report_status(AxisEnum axis) {
   }
 }
 
+#endif
 
 
