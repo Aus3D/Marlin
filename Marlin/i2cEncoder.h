@@ -91,6 +91,7 @@ class I2cEncoder {
         bool invertDirection = false;
         long lastPosition = 0;
         unsigned long lastPositionTime = 0;
+        bool errorCorrect = true;
 
 
         
@@ -110,6 +111,8 @@ class I2cEncoder {
         bool passes_test(bool report,bool &moduleDetected);
         bool passes_test(bool report);
         byte get_magnetic_strength();
+        void test_axis();
+        void calibrate_steps_mm(int iterations);
 
         void set_axis(AxisEnum axis);
         void set_address(byte address);
@@ -134,6 +137,9 @@ class EncoderManager {
         void homed(AxisEnum axis);
         void report_position(AxisEnum axis, bool units, bool noOffset);
         void report_status(AxisEnum axis);
+        void test_axis(AxisEnum axis);
+        void calibrate_steps_mm(AxisEnum axis, int iterations);
+        void calibrate_steps_mm(int iterations);
 
 };
 
