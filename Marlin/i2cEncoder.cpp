@@ -20,7 +20,7 @@
  *
  */
 
-#if defined(I2C_ENCODERS_ENABLED)
+
 
 #include "Marlin.h"
 #include "i2cEncoder.h"
@@ -28,6 +28,8 @@
 #include "stepper.h"
 
 #include <Wire.h>
+
+#if defined(I2C_ENCODERS_ENABLED)
 
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
 
@@ -44,7 +46,7 @@ void I2cEncoder::init(AxisEnum axis, byte address) {
 void I2cEncoder::update() {
 
   //check encoder is set up and active
-  if(initialised && homed && active) {
+  if(initialised && homed && active && errorCorrect) {
 
     bool moduleDetected;
 
@@ -315,6 +317,130 @@ byte I2cEncoder::get_magnetic_strength() {
     return reading;
   }
 
+void I2cEncoder::test_axis() {
+  float startPosition, endPosition;
+  startPosition = sw_endstop_min[get_axis()] + 10;
+  endPosition = sw_endstop_max[get_axis()] - 10;  
+}
+
+void I2cEncoder::calibrate_steps_mm(int iterations) {
+  float oldStepsMm;
+  float newStepsMm;
+  float startDistance;
+  float endDistance;
+  float travelDistance;
+  float travelledDistance;
+  float total = 0;
+  long startCount, stopCount;
+
+  float startCoord[NUM_AXIS] = {0};
+  float endCoord[NUM_AXIS] = {0};
+
+
+  const float homing_feedrate[] = HOMING_FEEDRATE;
+  int feedrate = homing_feedrate[get_axis()] / 60;//2000 / 60;
+
+  if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
+
+    errorCorrect = false;
+
+    startDistance = 20;//1*((sw_endstop_max[get_axis()] - sw_endstop_min[get_axis()])/4);
+    endDistance = sw_endstop_max[get_axis()] - 20;//3*((sw_endstop_max[get_axis()] - sw_endstop_min[get_axis()])/4);
+    travelDistance = endDistance - startDistance;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+      endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+    }
+
+    startCoord[get_axis()] = startDistance;
+    endCoord[get_axis()] = endDistance;
+
+
+    for(int i = 0; i < iterations; i++) {
+
+
+      stepper.synchronize();
+
+      //feedrate = homing_feedrate[get_axis()];
+
+      //Move to 1/4th of axis length
+
+      //do_blocking_move_to(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS]);
+
+      planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+      stepper.synchronize();
+
+      delay(250);
+      startCount = get_position();
+
+      //do_blocking_move_to(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS]);
+
+      planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+      stepper.synchronize();
+
+      //Read encoder distance
+
+      delay(250);
+      stopCount = get_position();
+
+      travelledDistance = mm_from_count(abs(stopCount - startCount));
+
+      SERIAL_ECHO("Attempted to travel: ");
+      SERIAL_ECHO(travelDistance);
+      SERIAL_ECHOLN("mm.");
+
+      SERIAL_ECHO("Actually travelled:  ");
+      SERIAL_ECHO(travelledDistance);
+      SERIAL_ECHOLN("mm.");
+
+      //float percentageDifference = (travelDistance - travelledDistance) / travelDistance;
+
+      //Calculate new axis steps per unit
+      oldStepsMm = planner.axis_steps_per_mm[get_axis()];
+      newStepsMm = (oldStepsMm * travelDistance) / travelledDistance;
+
+      SERIAL_ECHO("Old steps per mm: ");
+      SERIAL_ECHOLN(oldStepsMm);
+
+      SERIAL_ECHO("New steps per mm: ");
+      SERIAL_ECHOLN(newStepsMm);
+      
+      //Save new value
+      planner.axis_steps_per_mm[get_axis()] = newStepsMm;
+
+      if(iterations > 1) {
+        total += newStepsMm;
+
+        //swap start and end points so next loop runs from current position
+        float tempCoord = startCoord[get_axis()];
+        startCoord[get_axis()] = endCoord[get_axis()];
+        endCoord[get_axis()] = tempCoord;
+      }
+
+    }
+
+    if(iterations > 1) {
+      total = total / (float) iterations;
+      SERIAL_ECHO("Average steps per mm: ");
+      SERIAL_ECHOLN(total);
+
+      //Save new value
+      //axis_steps_per_unit[get_axis()] = total;
+    }
+
+    errorCorrect = true;
+
+
+    SERIAL_ECHOLN("Calculated steps per mm has been set. Please save to EEPROM (M500) if you wish to keep these values.");
+  } else {
+    SERIAL_ECHOLN("Automatic steps / mm calibration not supported for this axis.");
+  }
+
+}
+
+
+
 void I2cEncoder::set_zeroed() {
   //Set module to report magnetic strength
   Wire.beginTransmission(i2cAddress);
@@ -453,6 +579,51 @@ void EncoderManager::report_status(AxisEnum axis) {
     }
   }
 }
+
+void EncoderManager::test_axis(AxisEnum axis) {
+  bool responded = false;
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].test_axis();
+      responded = true;
+      break;
+    }
+
+    if (!responded) {
+      SERIAL_ECHOLN("No encoder configured for given axis!");
+      responded = true;
+    }
+  }
+}
+
+void EncoderManager::calibrate_steps_mm(AxisEnum axis, int iterations) {
+  bool responded = false;
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].calibrate_steps_mm(iterations);
+      responded = true;
+      break;
+    }
+
+    if (!responded) {
+      SERIAL_ECHOLN("No encoder configured for given axis!");
+      responded = true;
+    }
+  }
+}
+
+void EncoderManager::calibrate_steps_mm(int iterations) {
+  bool responded = false;
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_active()) {
+      encoderArray[i].calibrate_steps_mm(iterations);
+    }
+  }
+}
+
 
 #endif
 

@@ -7726,6 +7726,14 @@ void process_next_command() {
           gcode_M861();
           break;
 
+        case 862: // M351 Report encoder module status
+          gcode_M862();
+          break;
+
+        case 863: // M351 Report encoder module status
+          gcode_M863();
+          break;
+
       #endif // I2C_ENCODERS_ENABLED
 
       case 999: // M999: Restart after being Stopped
@@ -8898,6 +8906,42 @@ void calculate_volumetric_multipliers() {
     }
 
     i2cEncoderManager.report_status(selectedAxis);
+  }
+
+  inline void gcode_M862() {
+    AxisEnum selectedAxis;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.test_axis(selectedAxis);
+  }
+
+    inline void gcode_M863() {
+    AxisEnum selectedAxis;
+    int iterations = 1;
+    bool axisSelected = false;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        axisSelected = true;
+      }
+    }
+
+    if (code_seen('I')) {
+      iterations = constrain(code_value_int(),1,10);
+    }
+
+    if(axisSelected) {
+      i2cEncoderManager.calibrate_steps_mm(selectedAxis,iterations);
+    } else {
+      i2cEncoderManager.calibrate_steps_mm(iterations);
+    }
+
   }
 
 #endif //I2C_ENCODERS_ENABLED
