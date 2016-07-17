@@ -7205,17 +7205,23 @@ inline void gcode_M907() {
 
   inline void gcode_M862() {
     AxisEnum selectedAxis;
+    bool axisSelected = false;
 
     for(int i = 0; i < NUM_AXIS; i++) {
       if (code_seen(axis_codes[i])) {
         selectedAxis = AxisEnum(i);
+        axisSelected = true;
       }
     }
 
-    i2cEncoderManager.test_axis(selectedAxis);
+    if(axisSelected) {
+      i2cEncoderManager.test_axis(selectedAxis);
+    } else {
+      i2cEncoderManager.test_axis();
+    }
   }
 
-    inline void gcode_M863() {
+  inline void gcode_M863() {
     AxisEnum selectedAxis;
     int iterations = 1;
     bool axisSelected = false;
@@ -7237,6 +7243,103 @@ inline void gcode_M907() {
       i2cEncoderManager.calibrate_steps_mm(iterations);
     }
 
+  }
+
+  inline void gcode_M864() {
+    AxisEnum selectedAxis;
+    int newAddress, oldAddress;
+    bool addressSelected = false;
+
+
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        addressSelected = true;
+      }
+    }
+
+    if (addressSelected == false) {
+      if(code_seen('A')) {
+        newAddress = code_value_int();
+        addressSelected = true;
+      }
+    } else {
+      switch (selectedAxis) {
+        case X_AXIS:
+          newAddress = I2C_ENCODER_PRESET_ADDR_X;
+          break;
+        case Y_AXIS:
+          newAddress = I2C_ENCODER_PRESET_ADDR_Y;
+          break;
+        case Z_AXIS:
+          newAddress = I2C_ENCODER_PRESET_ADDR_Z;
+          break;
+        case E_AXIS:
+          newAddress = I2C_ENCODER_PRESET_ADDR_E;
+          break;
+      }
+    }
+
+    if(code_seen('O')) {
+      oldAddress = code_value_int();
+    } else {
+      oldAddress = I2C_ENCODER_PRESET_ADDR_X;
+    }
+
+    if(addressSelected) { 
+      if(newAddress > 0 && newAddress <= 255 && oldAddress > 0 && oldAddress <= 255) {
+        SERIAL_ECHO("Changing module at address ");
+        SERIAL_ECHO(oldAddress);
+        SERIAL_ECHO(" to new address ");
+        SERIAL_ECHOLN(newAddress);
+        i2cEncoderManager.change_module_address(oldAddress, newAddress);
+      }
+    } else {
+      SERIAL_ECHOLN("Please specify a new address!");
+    }
+  }
+
+
+  inline void gcode_M865() {
+    AxisEnum selectedAxis;
+    int selectedAddress;
+    bool addressSelected = false;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        addressSelected = true;
+      }
+    }
+
+    if (addressSelected == false) {
+      if(code_seen('A')) {
+        selectedAddress = code_value_int();
+        addressSelected = true;
+      }
+    } else {
+      switch (selectedAxis) {
+        case X_AXIS:
+          selectedAddress = I2C_ENCODER_PRESET_ADDR_X;
+          break;
+        case Y_AXIS:
+          selectedAddress = I2C_ENCODER_PRESET_ADDR_Y;
+          break;
+        case Z_AXIS:
+          selectedAddress = I2C_ENCODER_PRESET_ADDR_Z;
+          break;
+        case E_AXIS:
+          selectedAddress = I2C_ENCODER_PRESET_ADDR_E;
+          break;
+      }
+    }
+
+    if(addressSelected) { 
+        i2cEncoderManager.check_module_firmware(selectedAddress);
+    } else {
+      SERIAL_ECHOLN("Please specify an address to check!");
+    }
   }
 
 #endif //I2C_ENCODERS_ENABLED
@@ -8308,6 +8411,14 @@ void process_next_command() {
 
         case 863: // M351 Report encoder module status
           gcode_M863();
+          break;
+
+        case 864: // M351 Report encoder module status
+          gcode_M864();
+          break;
+
+        case 865: // M351 Report encoder module status
+          gcode_M865();
           break;
 
       #endif // I2C_ENCODERS_ENABLED

@@ -28,19 +28,26 @@
 #include "macros.h"
 
 #define ENCODER_DEBUG_ECHOS
+#define REBOOT_TIME 5000
 
 //I2C defines / enums etc
 #define I2C_MAG_SIG_GOOD 0
 #define I2C_MAG_SIG_MID 1
 #define I2C_MAG_SIG_BAD 2
 
-#define I2C_ENC_LED_PAR_MODE 10
-#define I2C_ENC_LED_PAR_BRT 11
-#define I2C_ENC_LED_PAR_RATE 14
+#define I2C_REQ_REPORT        0
+#define I2C_RESET_COUNT       1
+#define I2C_SET_ADDR          2
+#define I2C_SET_REPORT_MODE   3
+#define I2C_CLEAR_EEPROM      4
 
-#define I2C_ENC_REPORT_MODE_REGISTER 3
+#define I2C_ENC_LED_PAR_MODE  10
+#define I2C_ENC_LED_PAR_BRT   11
+#define I2C_ENC_LED_PAR_RATE  14
+
 #define I2C_ENC_REPORT_MODE_DISTANCE 0
 #define I2C_ENC_REPORT_MODE_STRENGTH 1
+#define I2C_ENC_REPORT_MODE_VERSION  2
 
 //default I2C addresses
 #define I2C_ENCODER_PRESET_ADDR_X 30
@@ -62,18 +69,8 @@ void gcode_M860();
 void gcode_M861();
 void gcode_M862();
 void gcode_M863();
+void gcode_M864();
 void gcode_M865();
-void gcode_M866();
-void gcode_M867();
-
-void i2c_encoder_init();
-void check_axis_errors();
-void correct_axis_errors(bool);
-void set_encoder_homed(AxisEnum);
-void report_encoder_positions(AxisEnum);
-void report_encoder_positions_mm(AxisEnum);
-
-void calculate_axis_steps_per_unit(AxisEnum, int);
 
 class I2cEncoder {
     private:
@@ -91,13 +88,9 @@ class I2cEncoder {
         bool invertDirection = false;
         long lastPosition = 0;
         unsigned long lastPositionTime = 0;
-        bool errorCorrect = true;
-
-
-        
+        bool errorCorrect = true;   
 
     public:
-
         void init(AxisEnum axis, byte address);
         void update();
         void set_homed();
@@ -111,7 +104,7 @@ class I2cEncoder {
         bool passes_test(bool report,bool &moduleDetected);
         bool passes_test(bool report);
         byte get_magnetic_strength();
-        void test_axis();
+        bool test_axis();
         void calibrate_steps_mm(int iterations);
 
         void set_axis(AxisEnum axis);
@@ -138,13 +131,13 @@ class EncoderManager {
         void report_position(AxisEnum axis, bool units, bool noOffset);
         void report_status(AxisEnum axis);
         void test_axis(AxisEnum axis);
+        void test_axis();
         void calibrate_steps_mm(AxisEnum axis, int iterations);
         void calibrate_steps_mm(int iterations);
+        void change_module_address(int oldAddress, int newAddress);
+        void check_module_firmware(int address);
 
 };
-
-
-int get_encoder_axis_address(AxisEnum);
 
 static inline int8_t sgn(int val) {
  if (val < 0) return -1;

@@ -1413,6 +1413,7 @@
   //Enable and configure encoders
   #define I2C_ENCODER_1_ADDR I2C_ENCODER_PRESET_ADDR_X
   #define I2C_ENCODER_1_AXIS X_AXIS
+  #define I2C_ENCODER_1_INVERT
 
   #define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
   #define I2C_ENCODER_2_AXIS Y_AXIS
@@ -1425,10 +1426,11 @@
 
   //Configure error correction
   #define AXIS_ERROR_THRESHOLD_ABORT 100.0  //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
-  #define AXIS_ERROR_THRESHOLD_CORRECT 0.050    //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
+  #define AXIS_ERROR_THRESHOLD_CORRECT 0.1    //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
   #define STABLE_TIME_UNTIL_TRUSTED 10000 //after an error, there must be no errors for this period (ms) before the encoder is trusted again
 
   #define ERROR_CORRECT_METHOD 1
+  #define ERROR_CORRECT_METHOD_1
   #define STEPRATE 1
   #define BABYSTEPPING
 
