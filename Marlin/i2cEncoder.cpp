@@ -296,7 +296,7 @@ byte I2cEncoder::get_magnetic_strength() {
 
     //Set module to report magnetic strength
     Wire.beginTransmission((int)i2cAddress);
-    Wire.write(I2C_ENC_REPORT_MODE_REGISTER);
+    Wire.write(I2C_SET_REPORT_MODE);
     Wire.write(I2C_ENC_REPORT_MODE_STRENGTH);
     Wire.endTransmission();
 
@@ -310,27 +310,59 @@ byte I2cEncoder::get_magnetic_strength() {
 
     //Set module back to normal (distance) mode
     Wire.beginTransmission((int)i2cAddress);
-    Wire.write(I2C_ENC_REPORT_MODE_REGISTER);
+    Wire.write(I2C_SET_REPORT_MODE);
     Wire.write(I2C_ENC_REPORT_MODE_DISTANCE);
     Wire.endTransmission();
 
     return reading;
   }
 
-void I2cEncoder::test_axis() {
+bool I2cEncoder::test_axis() {
   float startPosition, endPosition;
+
+  float startCoord[NUM_AXIS] = {0};
+  float endCoord[NUM_AXIS] = {0};
+
   startPosition = sw_endstop_min[get_axis()] + 10;
   endPosition = sw_endstop_max[get_axis()] - 10;  
+
+  const float homing_feedrate[] = HOMING_FEEDRATE;
+  int feedrate = homing_feedrate[get_axis()] / 60;
+
+  errorCorrect = false;
+
+  for(int i = 0; i < NUM_AXIS; i++) {
+    startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+    endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+  }
+
+  startCoord[get_axis()] = startPosition;
+  endCoord[get_axis()] = endPosition;
+
+  stepper.synchronize();
+
+  planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+  stepper.synchronize();
+
+
+  //if the module isn't currently trusted, wait until it is (or until it should be if things are working)
+  if(trusted == false) {
+    long startWaitingTime = millis();
+    while(!trusted && millis() - startWaitingTime < STABLE_TIME_UNTIL_TRUSTED) {}
+  }
+
+  planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+  stepper.synchronize();
+
+  if(trusted) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void I2cEncoder::calibrate_steps_mm(int iterations) {
-  float oldStepsMm;
-  float newStepsMm;
-  float startDistance;
-  float endDistance;
-  float travelDistance;
-  float travelledDistance;
-  float total = 0;
+  float oldStepsMm, newStepsMm, startDistance, endDistance, travelDistance, travelledDistance, total = 0;
   long startCount, stopCount;
 
   float startCoord[NUM_AXIS] = {0};
@@ -338,14 +370,14 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
 
 
   const float homing_feedrate[] = HOMING_FEEDRATE;
-  int feedrate = homing_feedrate[get_axis()] / 60;//2000 / 60;
+  int feedrate = homing_feedrate[get_axis()] / 60;
 
   if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
 
     errorCorrect = false;
 
-    startDistance = 20;//1*((sw_endstop_max[get_axis()] - sw_endstop_min[get_axis()])/4);
-    endDistance = sw_endstop_max[get_axis()] - 20;//3*((sw_endstop_max[get_axis()] - sw_endstop_min[get_axis()])/4);
+    startDistance = 20;
+    endDistance = sw_endstop_max[get_axis()] - 20;
     travelDistance = endDistance - startDistance;
 
     for(int i = 0; i < NUM_AXIS; i++) {
@@ -444,7 +476,7 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
 void I2cEncoder::set_zeroed() {
   //Set module to report magnetic strength
   Wire.beginTransmission(i2cAddress);
-  Wire.write(1);
+  Wire.write(I2C_RESET_COUNT);
   Wire.endTransmission();
 }
 
@@ -582,18 +614,18 @@ void EncoderManager::report_status(AxisEnum axis) {
 
 void EncoderManager::test_axis(AxisEnum axis) {
   bool responded = false;
-
   for(byte i = 0; i < NUM_AXIS; i++) {
     if(encoderArray[i].get_axis() == axis) {
       encoderArray[i].test_axis();
       responded = true;
       break;
     }
+  }
+}
 
-    if (!responded) {
-      SERIAL_ECHOLN("No encoder configured for given axis!");
-      responded = true;
-    }
+void EncoderManager::test_axis() {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    test_axis((AxisEnum)i);
   }
 }
 
@@ -621,6 +653,101 @@ void EncoderManager::calibrate_steps_mm(int iterations) {
     if(encoderArray[i].get_active()) {
       encoderArray[i].calibrate_steps_mm(iterations);
     }
+  }
+}
+
+void EncoderManager::change_module_address(int oldAddress, int newAddress) {
+  byte error;
+
+  //first check 'new' address is not in use
+  Wire.beginTransmission(newAddress);
+  error = Wire.endTransmission();
+
+  if(error == 0) {
+    SERIAL_ECHOLN("Warning! There is already a device with that address on the I2C bus!");
+  } else {
+
+    Wire.beginTransmission(oldAddress);
+    error = Wire.endTransmission();
+
+    if(error == 0) {
+
+      SERIAL_ECHO("Module found at ");
+      SERIAL_ECHO(oldAddress);
+      SERIAL_ECHOLN(", changing address...");
+
+      Wire.beginTransmission(oldAddress);
+      Wire.write(I2C_SET_ADDR);
+      Wire.write(newAddress);
+      Wire.endTransmission();
+
+      SERIAL_ECHOLN("Address changed, waiting for confirmation...");
+
+      //Wait for the module to reset
+      long startWaiting = millis();
+      while(millis() - startWaiting < REBOOT_TIME) {
+        idle();
+        delay(500);
+      }
+
+      Wire.beginTransmission(newAddress);
+      error = Wire.endTransmission();
+
+      if(error == 0) {
+        SERIAL_ECHOLN("Confirmed! Address change succesful.");
+      } else {
+        SERIAL_ECHOLN("Failed. Please check encoder module.");
+      }
+
+    } else {
+      SERIAL_ECHOLN("No module detected!");
+    }
+  }
+}
+
+
+void EncoderManager::check_module_firmware(int address) {
+
+  //first check there is a module
+  Wire.beginTransmission(address);
+  int error = Wire.endTransmission();
+
+  if(error != 0) {
+    SERIAL_ECHOLN("Warning! No module detected at given address!");
+  } else {
+
+    SERIAL_ECHO("Requesting version info from module at address ");
+    SERIAL_ECHOLN(address);
+
+    Wire.beginTransmission(address);
+
+    Wire.write(I2C_SET_REPORT_MODE);
+    Wire.write(I2C_ENC_REPORT_MODE_VERSION);
+    Wire.endTransmission();
+
+    //Read value
+    Wire.requestFrom((int)address,32);
+
+    byte temp[32] = {0};
+    int tempIndex = 0;
+
+    while(Wire.available() > 0) {
+      temp[tempIndex] = Wire.read();
+      tempIndex++;
+    }
+
+    for(int i = 0; i < tempIndex+1; i++) {
+      if((char)temp[i] > 0) {
+        SERIAL_ECHO((char)temp[i]);
+      }
+    }
+
+    //Set module back to normal (distance) mode
+    Wire.beginTransmission((int)address);
+    Wire.write(I2C_SET_REPORT_MODE);
+    Wire.write(I2C_ENC_REPORT_MODE_DISTANCE);
+    Wire.endTransmission();
+
   }
 }
 
