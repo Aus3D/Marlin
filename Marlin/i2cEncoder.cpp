@@ -87,8 +87,6 @@ void I2cEncoder::update() {
           }
         #endif
 
-
-
         if(abs(error) > threshold) {
           #if defined(ERROR_CORRECT_METHOD_1)
 
@@ -103,15 +101,11 @@ void I2cEncoder::update() {
             }
 
             axisPosition[get_axis()] = mm_from_count(position);
-            //stepper.set_position(get_axis(), lround(mm_from_count(position) * planner.axis_steps_per_mm[get_axis()]));
             planner.set_position_mm(axisPosition[X_AXIS],axisPosition[Y_AXIS],axisPosition[Z_AXIS],axisPosition[E_AXIS]);
             current_position[get_axis()] = mm_from_count(position);
-            //SERIAL_ECHOLN("Correcting error");
 
           #endif
-
         }
-
 
         lastPositionTime = positionTime;
       } else {
@@ -125,22 +119,19 @@ void I2cEncoder::update() {
           SERIAL_ECHOLN(" axis has been error-free for set duration, reinstating error correction.");
 
           //the encoder likely lost its place when the error occured, so we'll reset and use the printer's
-          //idea of where it is to re-initialise
+          //idea of where it the axis is to re-initialise
           double position = stepper.get_axis_position_mm(encoderAxis);
           long positionInTicks = position * ENCODER_TICKS_PER_MM;
 
-          //shift position from zero to current position
+          //shift position from previous to current position
           zeroOffset -= (positionInTicks - get_position());
 
           #if defined(ENCODER_DEBUG_ECHOS)
-          
             SERIAL_ECHO("Current position is ");
             SERIAL_ECHOLN(position);
 
             SERIAL_ECHO("Position in encoder ticks is ");
             SERIAL_ECHOLN(positionInTicks);
-
-
 
             SERIAL_ECHO("New zero-offset of ");
             SERIAL_ECHOLN(zeroOffset);
@@ -150,23 +141,17 @@ void I2cEncoder::update() {
             SERIAL_ECHO("(");
             SERIAL_ECHO(mm_from_count(get_position()));
             SERIAL_ECHOLN(")");
-
           #endif
         }
-
-      }
-
-      
-
+      }  
     } else {
-      
       lastErrorTime = millis();
+
       if(trusted) {
         trusted = false;
         SERIAL_ECHO("Error detected on ");
         SERIAL_ECHO(axis_codes[encoderAxis]);
         SERIAL_ECHOLN(" axis encoder. Disengaging error correction until module is trusted again.");
-
       }
     }
   }
@@ -282,8 +267,6 @@ long I2cEncoder::get_raw_count() {
     index += 1;
   }
 
-  //SERIAL_ECHOLN(encoderCount.val);
-
   if(invertDirection) {
     return -encoderCount.val;
   } else {
@@ -306,7 +289,6 @@ byte I2cEncoder::get_magnetic_strength() {
     byte reading = 99;
 
     reading = Wire.read();
-    //SERIAL_ECHO((int)reading);
 
     //Set module back to normal (distance) mode
     Wire.beginTransmission((int)i2cAddress);
@@ -344,21 +326,30 @@ bool I2cEncoder::test_axis() {
   planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
   stepper.synchronize();
 
-
   //if the module isn't currently trusted, wait until it is (or until it should be if things are working)
   if(trusted == false) {
     long startWaitingTime = millis();
-    while(!trusted && millis() - startWaitingTime < STABLE_TIME_UNTIL_TRUSTED) {}
+    while(!trusted && millis() - startWaitingTime < STABLE_TIME_UNTIL_TRUSTED) {
+      idle();
+      delay(500);
+    }
   }
 
-  planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
-  stepper.synchronize();
-
   if(trusted) {
-    return true;
+    //if trusted, commence test
+    planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+    stepper.synchronize();
+
+    if(trusted) {
+      return true;
+    } else {
+      return false;
+    }
   } else {
     return false;
   }
+
+
 }
 
 void I2cEncoder::calibrate_steps_mm(int iterations) {
@@ -390,15 +381,7 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
 
 
     for(int i = 0; i < iterations; i++) {
-
-
       stepper.synchronize();
-
-      //feedrate = homing_feedrate[get_axis()];
-
-      //Move to 1/4th of axis length
-
-      //do_blocking_move_to(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS]);
 
       planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
       stepper.synchronize();
@@ -426,8 +409,6 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
       SERIAL_ECHO(travelledDistance);
       SERIAL_ECHOLN("mm.");
 
-      //float percentageDifference = (travelDistance - travelledDistance) / travelDistance;
-
       //Calculate new axis steps per unit
       oldStepsMm = planner.axis_steps_per_mm[get_axis()];
       newStepsMm = (oldStepsMm * travelDistance) / travelledDistance;
@@ -449,7 +430,6 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
         startCoord[get_axis()] = endCoord[get_axis()];
         endCoord[get_axis()] = tempCoord;
       }
-
     }
 
     if(iterations > 1) {
@@ -462,7 +442,6 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
     }
 
     errorCorrect = true;
-
 
     SERIAL_ECHOLN("Calculated steps per mm has been set. Please save to EEPROM (M500) if you wish to keep these values.");
   } else {
