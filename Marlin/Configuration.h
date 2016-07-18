@@ -1415,19 +1415,21 @@
   #define I2C_ENCODER_1_AXIS X_AXIS
   #define I2C_ENCODER_1_INVERT
 
-  #define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
-  #define I2C_ENCODER_2_AXIS Y_AXIS
+  //#define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
+  //#define I2C_ENCODER_2_AXIS Y_AXIS
+  //#define I2C_ENCODER_2_INVERT
 
-  #define I2C_ENCODER_3_ADDR I2C_ENCODER_PRESET_ADDR_Z
-  #define I2C_ENCODER_3_AXIS Z_AXIS
+  //#define I2C_ENCODER_3_ADDR I2C_ENCODER_PRESET_ADDR_Z
+  //#define I2C_ENCODER_3_AXIS Z_AXIS
+  //#define I2C_ENCODER_3_INVERT
+
 
   #define ENCODER_TICKS_PER_MM 2048
 
-
   //Configure error correction
-  #define AXIS_ERROR_THRESHOLD_ABORT 100.0  //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
+  //#define AXIS_ERROR_THRESHOLD_ABORT 100.0    //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
   #define AXIS_ERROR_THRESHOLD_CORRECT 0.1    //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
-  #define STABLE_TIME_UNTIL_TRUSTED 10000 //after an error, there must be no errors for this period (ms) before the encoder is trusted again
+  #define STABLE_TIME_UNTIL_TRUSTED 10000     //after an encoder fault, there must be no further fault for this period (ms) before the encoder is trusted again
 
   #define ERROR_CORRECT_METHOD_1
   #define STEPRATE 1
