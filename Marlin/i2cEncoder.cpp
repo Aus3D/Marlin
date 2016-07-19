@@ -20,8 +20,6 @@
  *
  */
 
-
-
 #include "Marlin.h"
 #include "i2cEncoder.h"
 #include "temperature.h"
@@ -450,8 +448,6 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
 
 }
 
-
-
 void I2cEncoder::set_zeroed() {
   //Set module to report magnetic strength
   Wire.beginTransmission(i2cAddress);
@@ -646,6 +642,7 @@ void EncoderManager::change_module_address(int oldAddress, int newAddress) {
     SERIAL_ECHOLN("Warning! There is already a device with that address on the I2C bus!");
   } else {
 
+    //now check that we can find the module on the old address
     Wire.beginTransmission(oldAddress);
     error = Wire.endTransmission();
 
@@ -655,6 +652,7 @@ void EncoderManager::change_module_address(int oldAddress, int newAddress) {
       SERIAL_ECHO(oldAddress);
       SERIAL_ECHOLN(", changing address...");
 
+      //change the modules address
       Wire.beginTransmission(oldAddress);
       Wire.write(I2C_SET_ADDR);
       Wire.write(newAddress);
@@ -662,13 +660,14 @@ void EncoderManager::change_module_address(int oldAddress, int newAddress) {
 
       SERIAL_ECHOLN("Address changed, waiting for confirmation...");
 
-      //Wait for the module to reset
+      //Wait for the module to reset (can probably be improved by polling address instead of blindly waiting...)
       long startWaiting = millis();
       while(millis() - startWaiting < REBOOT_TIME) {
         idle();
         delay(500);
       }
 
+      //look for the module at the new address
       Wire.beginTransmission(newAddress);
       error = Wire.endTransmission();
 
@@ -730,7 +729,4 @@ void EncoderManager::check_module_firmware(int address) {
   }
 }
 
-
 #endif
-
-
