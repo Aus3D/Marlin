@@ -7342,6 +7342,41 @@ inline void gcode_M907() {
     }
   }
 
+  inline void gcode_M866() {
+    AxisEnum selectedAxis;
+    bool axisSelected = false;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        axisSelected = true;
+      }
+    }
+
+    if(axisSelected) {
+      i2cEncoderManager.report_error_count(selectedAxis);
+    } else {
+      i2cEncoderManager.report_error_count();
+    }
+  }
+
+  inline void gcode_M867() {
+    AxisEnum selectedAxis;
+    bool axisSelected = false;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        axisSelected = true;
+      }
+    }
+
+    if(axisSelected) {
+      i2cEncoderManager.toggle_error_correction(selectedAxis);
+    } 
+  }
+
+
 #endif //I2C_ENCODERS_ENABLED
 
 /**
@@ -8419,6 +8454,14 @@ void process_next_command() {
 
         case 865: // M351 Report encoder module status
           gcode_M865();
+          break;
+
+        case 866: // M351 Report encoder module status
+          gcode_M866();
+          break;
+
+        case 867: // M351 Report encoder module status
+          gcode_M867();
           break;
 
       #endif // I2C_ENCODERS_ENABLED
