@@ -103,6 +103,11 @@ void I2cEncoder::update() {
             current_position[get_axis()] = mm_from_count(position);
 
           #endif
+
+          if(abs(error) > ERROR_COUNTER_TRIGGER_THRESHOLD && millis() - lastErrorCountTime > ERROR_COUNTER_DEBOUNCE_MS) {
+            errorCount++;
+            lastErrorCountTime = millis();
+          }
         }
 
         lastPositionTime = positionTime;
@@ -346,8 +351,6 @@ bool I2cEncoder::test_axis() {
   } else {
     return false;
   }
-
-
 }
 
 void I2cEncoder::calibrate_steps_mm(int iterations) {
@@ -475,9 +478,20 @@ void I2cEncoder::set_inverted(bool inv) {
   invertDirection = inv;
 }
 
+int I2cEncoder::get_error_count() {
+  return errorCount;
+}
+
+void I2cEncoder::set_error_correction_enabled(bool enabled) {
+  errorCorrect = enabled;
+}
+
+bool I2cEncoder::get_error_correction_enabled() {
+  return errorCorrect;
+}
+
 EncoderManager::EncoderManager() {
   Wire.begin(); // We use no address so we will join the BUS as the master
-
 }
 
 void EncoderManager::init() {
@@ -726,6 +740,44 @@ void EncoderManager::check_module_firmware(int address) {
     Wire.write(I2C_ENC_REPORT_MODE_DISTANCE);
     Wire.endTransmission();
 
+  }
+}
+
+void EncoderManager::report_error_count(AxisEnum axis) {
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      SERIAL_ECHO("Error count on ");
+      SERIAL_ECHO(axis_codes[axis]);
+      SERIAL_ECHO(" axis is ");
+      SERIAL_ECHO(encoderArray[i].get_error_count());
+      SERIAL_ECHOLN(" events.");
+      break;
+    }
+  }
+}
+
+void EncoderManager::report_error_count() {
+  for(int i = 0; i < NUM_AXIS; i++) {
+    report_error_count((AxisEnum)i);
+  }
+}
+
+void EncoderManager::toggle_error_correction(AxisEnum axis) {
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].set_error_correction_enabled(!encoderArray[i].get_error_correction_enabled());
+      SERIAL_ECHO("Error correction on ");
+      SERIAL_ECHO(axis_codes[axis]);
+      SERIAL_ECHO(" axis is ");
+      if(encoderArray[i].get_error_correction_enabled()) {
+        SERIAL_ECHOLN("enabled.");
+      } else {
+        SERIAL_ECHOLN("disabled.");
+      }
+      break;
+    }
   }
 }
 

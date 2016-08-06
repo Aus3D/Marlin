@@ -27,7 +27,17 @@
 
 #include "macros.h"
 
+//=========== Advanced / Less-Common Encoder Configuration Settings ==========//
+//    (perhaps could go along with main configuration in configuration.h)     //
+
+//if enabled adjusts the error correction threshold proportional to the current speed of the axis
+//allows for very small error margin at low speeds without stuttering due to reading latency at high speeds
+#define ERROR_THRESHOLD_PROPORTIONAL_SPEED
+
+//enable encoder-related debug serial echos
 #define ENCODER_DEBUG_ECHOS
+
+//time we wait for an encoder module to reboot after changing address.
 #define REBOOT_TIME 5000
 
 //I2C defines / enums etc
@@ -58,7 +68,11 @@
 #define I2C_ENCODER_DEF_AXIS X_AXIS
 #define I2C_ENCODER_DEF_ADDR I2C_ENCODER_PRESET_ADDR_X
 
-#define ERROR_THRESHOLD_PROPORTIONAL_SPEED
+//Error event counter. Tracks how many times there is an error surpassing a certain threshold
+#define ERROR_COUNTER_TRIGGER_THRESHOLD     1.00
+#define ERROR_COUNTER_DEBOUNCE_MS           2000
+
+
 
 typedef union{
   volatile long val = 0;
@@ -71,6 +85,8 @@ void gcode_M862();
 void gcode_M863();
 void gcode_M864();
 void gcode_M865();
+void gcode_M866();
+void gcode_M867();
 
 class I2cEncoder {
     private:
@@ -89,6 +105,8 @@ class I2cEncoder {
         long lastPosition = 0;
         unsigned long lastPositionTime = 0;
         bool errorCorrect = true;   
+        int errorCount = 0;
+        unsigned long lastErrorCountTime = 0;
 
     public:
         void init(AxisEnum axis, byte address);
@@ -117,6 +135,11 @@ class I2cEncoder {
         bool get_inverted();
 
         AxisEnum get_axis();
+
+        int get_error_count();
+
+        void set_error_correction_enabled(bool enabled);
+        bool get_error_correction_enabled();
 };
 
 class EncoderManager {
@@ -136,6 +159,9 @@ class EncoderManager {
         void calibrate_steps_mm(int iterations);
         void change_module_address(int oldAddress, int newAddress);
         void check_module_firmware(int address);
+        void report_error_count(AxisEnum axis);
+        void report_error_count();
+        void toggle_error_correction(AxisEnum axis);
 
 };
 
