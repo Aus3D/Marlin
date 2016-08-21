@@ -74,6 +74,14 @@
 
 
 
+//Error Correction Methods
+#define ECM_NONE            0
+#define ECM_MICROSTEP       1
+#define ECM_PLANNER         2
+#define ECM_STALLDETECT     3
+
+
+
 typedef union{
   volatile long val = 0;
   byte bval[4];
@@ -105,8 +113,10 @@ class I2cEncoder {
         long lastPosition = 0;
         unsigned long lastPositionTime = 0;
         bool errorCorrect = true;   
+        float errorCorrectThreshold = AXIS_ERROR_THRESHOLD_CORRECT;
         int errorCount = 0;
         unsigned long lastErrorCountTime = 0;
+        byte errorCorrectMethod = ECM_NONE;
 
     public:
         void init(AxisEnum axis, byte address);
@@ -125,7 +135,8 @@ class I2cEncoder {
         bool test_axis();
         void calibrate_steps_mm(int iterations);
 
-        void set_axis(AxisEnum axis);
+        int get_error_count();
+        
         void set_address(byte address);
 
         void set_active(bool);
@@ -135,11 +146,16 @@ class I2cEncoder {
         bool get_inverted();
 
         AxisEnum get_axis();
+        void set_axis(AxisEnum axis);
 
-        int get_error_count();
+        bool get_error_correct_enabled();
+        void set_error_correct_enabled(bool enabled);
 
-        void set_error_correction_enabled(bool enabled);
-        bool get_error_correction_enabled();
+        byte get_error_correct_method();
+        void set_error_correct_method(byte method);
+
+        float get_error_correct_threshold();
+        void set_error_correct_threshold(float newThreshold);
 };
 
 class EncoderManager {
@@ -162,6 +178,8 @@ class EncoderManager {
         void report_error_count(AxisEnum axis);
         void report_error_count();
         void toggle_error_correction(AxisEnum axis);
+        void set_error_correct_threshold(AxisEnum axis, float newThreshold);
+        void get_error_correct_threshold(AxisEnum axis);
 
 };
 
