@@ -1405,7 +1405,7 @@
 //============================ I2C Encoder Settings =========================
 //===========================================================================
 
-//this section should be moved to Configuration.h at some stage
+
 #define I2C_ENCODERS_ENABLED
 
 #if defined(I2C_ENCODERS_ENABLED)
@@ -1413,7 +1413,9 @@
   //Enable and configure encoders
   #define I2C_ENCODER_1_ADDR I2C_ENCODER_PRESET_ADDR_X
   #define I2C_ENCODER_1_AXIS X_AXIS
-  #define I2C_ENCODER_1_INVERT
+  //#define I2C_ENCODER_1_INVERT
+  #define I2C_ENCODER_1_ERROR_CORRECT_METHOD 1
+  #define I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD 0.20
 
   //#define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
   //#define I2C_ENCODER_2_AXIS Y_AXIS

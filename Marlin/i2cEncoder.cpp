@@ -44,7 +44,7 @@ void I2cEncoder::init(AxisEnum axis, byte address) {
 void I2cEncoder::update() {
 
   //check encoder is set up and active
-  if(initialised && homed && active && errorCorrect) {
+  if(initialised && homed && active) {
 
     bool moduleDetected;
 
@@ -63,46 +63,58 @@ void I2cEncoder::update() {
         position = get_position();
         unsigned long positionTime = millis();
 
-        #if defined(ERROR_THRESHOLD_PROPORTIONAL_SPEED)
-          unsigned long distance = abs(position - lastPosition);
-          unsigned long deltaTime = positionTime - lastPositionTime;
-          unsigned long speed = distance / deltaTime;
+        //only do error correction if setup and enabled
+        if(get_error_correct_method() != ECM_NONE && get_error_correct_enabled()) {
 
-          float threshold = constrain((speed / 50),1,50) * AXIS_ERROR_THRESHOLD_CORRECT;
-        #else
-          float threshold = AXIS_ERROR_THRESHOLD_CORRECT;
-        #endif
-
-        //check error
-        double error = get_axis_error_mm(false);
-
-        #if defined(AXIS_ERROR_THRESHOLD_ABORT)
-          if(abs(error) > AXIS_ERROR_THRESHOLD_ABORT) {
-            //kill("Significant Error");
-            SERIAL_ECHO("Error, Kill! ");
-            SERIAL_ECHOLN(error);
-            delay(5000);
-          }
-        #endif
-
-        if(abs(error) > threshold) {
-          #if defined(ERROR_CORRECT_METHOD_1)
-
-            thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
-
-          #elif defined (ERROR_CORRECT_METHOD_2) 
-
-            double axisPosition[NUM_AXIS];
-
-            for(int i = 0; i < NUM_AXIS; i++) {
-              axisPosition[i] = stepper.get_axis_position_mm((AxisEnum)i);
-            }
-
-            axisPosition[get_axis()] = mm_from_count(position);
-            planner.set_position_mm(axisPosition[X_AXIS],axisPosition[Y_AXIS],axisPosition[Z_AXIS],axisPosition[E_AXIS]);
-            current_position[get_axis()] = mm_from_count(position);
-
+          #if defined(ERROR_THRESHOLD_PROPORTIONAL_SPEED)
+            unsigned long distance = abs(position - lastPosition);
+            unsigned long deltaTime = positionTime - lastPositionTime;
+            unsigned long speed = distance / deltaTime;
+            float threshold = constrain((speed / 50),1,50) * get_error_correct_threshold();
+          #else
+            float threshold = get_error_correct_threshold();
           #endif
+
+          //check error
+          double error = get_axis_error_mm(false);
+
+          #if defined(AXIS_ERROR_THRESHOLD_ABORT)
+            if(abs(error) > AXIS_ERROR_THRESHOLD_ABORT) {
+              //kill("Significant Error");
+              SERIAL_ECHO("Error, Kill! ");
+              SERIAL_ECHOLN(error);
+              delay(5000);
+            }
+          #endif
+
+          switch(get_error_correct_method()) {
+            case ECM_MICROSTEP: 
+              if(abs(error) > threshold) {
+                thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
+              }
+              break;
+            case ECM_PLANNER:
+              if(abs(error) > threshold) {
+                double axisPosition[NUM_AXIS];
+
+                for(int i = 0; i < NUM_AXIS; i++) {
+                  axisPosition[i] = stepper.get_axis_position_mm((AxisEnum)i);
+                }
+
+                axisPosition[get_axis()] = mm_from_count(position);
+                planner.set_position_mm(axisPosition[X_AXIS],axisPosition[Y_AXIS],axisPosition[Z_AXIS],axisPosition[E_AXIS]);
+                current_position[get_axis()] = mm_from_count(position);
+              }
+              break;
+            case ECM_STALLDETECT:
+
+              //if position unchanged from last several readings
+              //and stepper position should have changed
+              //sound the alert
+              break;
+
+          }
+
 
           if(abs(error) > ERROR_COUNTER_TRIGGER_THRESHOLD && millis() - lastErrorCountTime > ERROR_COUNTER_DEBOUNCE_MS) {
             errorCount++;
@@ -270,7 +282,7 @@ long I2cEncoder::get_raw_count() {
     index += 1;
   }
 
-  if(invertDirection) {
+  if(get_inverted()) {
     return -encoderCount.val;
   } else {
     return encoderCount.val;
@@ -482,12 +494,28 @@ int I2cEncoder::get_error_count() {
   return errorCount;
 }
 
-void I2cEncoder::set_error_correction_enabled(bool enabled) {
+void I2cEncoder::set_error_correct_enabled(bool enabled) {
   errorCorrect = enabled;
 }
 
-bool I2cEncoder::get_error_correction_enabled() {
+bool I2cEncoder::get_error_correct_enabled() {
   return errorCorrect;
+}
+
+void I2cEncoder::set_error_correct_method(byte method) {
+  errorCorrectMethod = method;
+}
+
+byte I2cEncoder::get_error_correct_method() {
+  return errorCorrectMethod;
+}
+
+void I2cEncoder::set_error_correct_threshold(float newThreshold) {
+  errorCorrectThreshold = newThreshold;
+}
+
+float I2cEncoder::get_error_correct_threshold() {
+  return errorCorrectThreshold;
 }
 
 EncoderManager::EncoderManager() {
@@ -503,6 +531,12 @@ void EncoderManager::init() {
     #if defined(I2C_ENCODER_1_INVERT)
       encoderArray[index].set_inverted(true);
     #endif
+    #if defined (I2C_ENCODER_1_ERROR_CORRECT_METHOD)
+      encoderArray[index].set_error_correct_method(I2C_ENCODER_1_ERROR_CORRECT_METHOD);
+    #endif
+    #if defined (I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD)
+      encoderArray[index].set_error_correct_threshold(I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD);
+    #endif
     index++;
   #endif  
 
@@ -511,6 +545,12 @@ void EncoderManager::init() {
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
     #if defined(I2C_ENCODER_2_INVERT)
       encoderArray[index].set_inverted(true);
+    #endif
+    #if defined (I2C_ENCODER_2_ERROR_CORRECT_METHOD)
+      encoderArray[index].set_error_correct_method(I2C_ENCODER_2_ERROR_CORRECT_METHOD);
+    #endif
+    #if defined (I2C_ENCODER_2_ERROR_CORRECT_THRESHOLD)
+      encoderArray[index].set_error_correct_threshold(I2C_ENCODER_2_ERROR_CORRECT_THRESHOLD);
     #endif
     index++;
   #endif  
@@ -521,6 +561,12 @@ void EncoderManager::init() {
     #if defined(I2C_ENCODER_3_INVERT)
       encoderArray[index].set_inverted(true);
     #endif
+    #if defined (I2C_ENCODER_3_ERROR_CORRECT_METHOD)
+      encoderArray[index].set_error_correct_method(I2C_ENCODER_3_ERROR_CORRECT_METHOD);
+    #endif
+    #if defined (I2C_ENCODER_3_ERROR_CORRECT_THRESHOLD)
+      encoderArray[index].set_error_correct_threshold(I2C_ENCODER_3_ERROR_CORRECT_THRESHOLD);
+    #endif
     index++;
   #endif  
 
@@ -529,6 +575,12 @@ void EncoderManager::init() {
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
     #if defined(I2C_ENCODER_4_INVERT)
       encoderArray[index].set_inverted(true);
+    #endif
+    #if defined (I2C_ENCODER_4_ERROR_CORRECT_METHOD)
+      encoderArray[index].set_error_correct_method(I2C_ENCODER_4_ERROR_CORRECT_METHOD);
+    #endif
+    #if defined (I2C_ENCODER_4_ERROR_CORRECT_THRESHOLD)
+      encoderArray[index].set_error_correct_threshold(I2C_ENCODER_4_ERROR_CORRECT_THRESHOLD);
     #endif
     index++;
   #endif  
@@ -539,12 +591,21 @@ void EncoderManager::init() {
     #if defined(I2C_ENCODER_5_INVERT)
       encoderArray[index].set_inverted(true);
     #endif
+    #if defined (I2C_ENCODER_5_ERROR_CORRECT_METHOD)
+      encoderArray[index].set_error_correct_method(I2C_ENCODER_5_ERROR_CORRECT_METHOD);
+    #endif
+    #if defined (I2C_ENCODER_5_ERROR_CORRECT_THRESHOLD)
+      encoderArray[index].set_error_correct_threshold(I2C_ENCODER_5_ERROR_CORRECT_THRESHOLD);
+    #endif
     index++;
-  #endif
+  #endif  
 
 }
 
 void EncoderManager::update() {
+
+  //consider only updating one endoder per call / tick if encoders become too time intensive
+
   for(byte i = 0; i < NUM_AXIS; i++) {
     encoderArray[i].update(); 
   }
@@ -767,11 +828,11 @@ void EncoderManager::toggle_error_correction(AxisEnum axis) {
 
   for(byte i = 0; i < NUM_AXIS; i++) {
     if(encoderArray[i].get_axis() == axis) {
-      encoderArray[i].set_error_correction_enabled(!encoderArray[i].get_error_correction_enabled());
+      encoderArray[i].set_error_correct_enabled(!encoderArray[i].get_error_correct_enabled());
       SERIAL_ECHO("Error correction on ");
       SERIAL_ECHO(axis_codes[axis]);
       SERIAL_ECHO(" axis is ");
-      if(encoderArray[i].get_error_correction_enabled()) {
+      if(encoderArray[i].get_error_correct_enabled()) {
         SERIAL_ECHOLN("enabled.");
       } else {
         SERIAL_ECHOLN("disabled.");
@@ -779,6 +840,35 @@ void EncoderManager::toggle_error_correction(AxisEnum axis) {
       break;
     }
   }
+}
+
+void EncoderManager::set_error_correct_threshold(AxisEnum axis, float newThreshold) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].set_error_correct_threshold(newThreshold);
+    }
+  }
+}
+
+void EncoderManager::get_error_correct_threshold(AxisEnum axis) {
+  float threshold = -999;
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].get_error_correct_threshold();
+      break;
+    }
+  }
+
+  if(threshold != -999) {
+    SERIAL_ECHO("Error correct threshold on ");
+    SERIAL_ECHO(axis_codes[axis]);
+    SERIAL_ECHO(" axis is ");
+    SERIAL_ECHO(threshold);
+    SERIAL_ECHOLN("mm.");
+  }
+
+
 }
 
 #endif

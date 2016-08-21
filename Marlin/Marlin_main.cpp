@@ -7376,6 +7376,37 @@ inline void gcode_M907() {
     } 
   }
 
+  inline void gcode_M868() {
+    AxisEnum selectedAxis;
+    bool axisSelected = false;
+    bool thresholdSet = false;
+    float newThreshold;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+        axisSelected = true;
+      }
+    }
+
+    if(code_seen('T')) {
+      newThreshold = code_value_float();
+      thresholdSet = true;
+    }
+
+    if(axisSelected) {
+      if(thresholdSet) {
+        i2cEncoderManager.set_error_correct_threshold(selectedAxis, newThreshold);
+      } else {
+        i2cEncoderManager.get_error_correct_threshold(selectedAxis);
+      }
+    } else {
+      for (int i = 0; i < NUM_AXIS; i++) {
+        i2cEncoderManager.get_error_correct_threshold((AxisEnum)i);
+      }
+    }
+  }
+
 
 #endif //I2C_ENCODERS_ENABLED
 
