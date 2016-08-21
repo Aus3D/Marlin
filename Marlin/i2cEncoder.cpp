@@ -172,14 +172,6 @@ void I2cEncoder::update() {
   }
 }
 
-void I2cEncoder::set_axis(AxisEnum axis) {
-  encoderAxis = axis;
-}
-
-void I2cEncoder::set_address(byte address) {
-  i2cAddress = address;
-}
-
 void I2cEncoder::set_homed() {
   if(active) {
     //reset module's offset to zero (so current position is homed / zero)
@@ -315,53 +307,61 @@ byte I2cEncoder::get_magnetic_strength() {
   }
 
 bool I2cEncoder::test_axis() {
-  float startPosition, endPosition;
 
-  float startCoord[NUM_AXIS] = {0};
-  float endCoord[NUM_AXIS] = {0};
+  //only works on XYZ cartesian machines for the time being
+  if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
 
-  startPosition = sw_endstop_min[get_axis()] + 10;
-  endPosition = sw_endstop_max[get_axis()] - 10;  
+    float startPosition, endPosition;
+    float startCoord[NUM_AXIS] = {0};
+    float endCoord[NUM_AXIS] = {0};
+    int feedrate;
 
-  const float homing_feedrate[] = HOMING_FEEDRATE;
-  int feedrate = homing_feedrate[get_axis()] / 60;
+    startPosition = sw_endstop_min[get_axis()] + 10;
+    endPosition = sw_endstop_max[get_axis()] - 10;  
 
-  errorCorrect = false;
-
-  for(int i = 0; i < NUM_AXIS; i++) {
-    startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
-    endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
-  }
-
-  startCoord[get_axis()] = startPosition;
-  endCoord[get_axis()] = endPosition;
-
-  stepper.synchronize();
-
-  planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
-  stepper.synchronize();
-
-  //if the module isn't currently trusted, wait until it is (or until it should be if things are working)
-  if(trusted == false) {
-    long startWaitingTime = millis();
-    while(!trusted && millis() - startWaitingTime < STABLE_TIME_UNTIL_TRUSTED) {
-      idle();
-      delay(500);
+    if(get_axis() == Z_AXIS) {
+      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_Z);
+    } else {
+      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_XY);
     }
-  }
 
-  if(trusted) {
-    //if trusted, commence test
-    planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+    errorCorrect = false;
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+      endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+    }
+
+    startCoord[get_axis()] = startPosition;
+    endCoord[get_axis()] = endPosition;
+
     stepper.synchronize();
 
+    planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+    stepper.synchronize();
+
+    //if the module isn't currently trusted, wait until it is (or until it should be if things are working)
+    if(trusted == false) {
+      long startWaitingTime = millis();
+      while(!trusted && millis() - startWaitingTime < STABLE_TIME_UNTIL_TRUSTED) {
+        idle();
+        delay(500);
+      }
+    }
+
     if(trusted) {
-      return true;
+      //if trusted, commence test
+      planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+      stepper.synchronize();
+
+      if(trusted) {
+        return true;
+      } else {
+        return false;
+      }
     } else {
       return false;
     }
-  } else {
-    return false;
   }
 }
 
@@ -371,12 +371,15 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
 
   float startCoord[NUM_AXIS] = {0};
   float endCoord[NUM_AXIS] = {0};
-
-
-  const float homing_feedrate[] = HOMING_FEEDRATE;
-  int feedrate = homing_feedrate[get_axis()] / 60;
+  int feedrate;
 
   if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
+
+    if(get_axis() == Z_AXIS) {
+      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_Z);
+    } else {
+      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_XY);
+    }
 
     errorCorrect = false;
 
@@ -474,6 +477,18 @@ AxisEnum I2cEncoder::get_axis() {
   return encoderAxis;
 }
 
+void I2cEncoder::set_axis(AxisEnum axis) {
+  encoderAxis = axis;
+}
+
+byte I2cEncoder::get_address() {
+  return i2cAddress;
+}
+
+void I2cEncoder::set_address(byte address) {
+  i2cAddress = address;
+}
+
 bool I2cEncoder::get_active() {
   return active;
 }
@@ -494,28 +509,32 @@ int I2cEncoder::get_error_count() {
   return errorCount;
 }
 
-void I2cEncoder::set_error_correct_enabled(bool enabled) {
-  errorCorrect = enabled;
+void I2cEncoder::set_error_count(int newCount) {
+  errorCount = newCount;
 }
 
 bool I2cEncoder::get_error_correct_enabled() {
   return errorCorrect;
 }
 
-void I2cEncoder::set_error_correct_method(byte method) {
-  errorCorrectMethod = method;
+void I2cEncoder::set_error_correct_enabled(bool enabled) {
+  errorCorrect = enabled;
 }
 
 byte I2cEncoder::get_error_correct_method() {
   return errorCorrectMethod;
 }
 
-void I2cEncoder::set_error_correct_threshold(float newThreshold) {
-  errorCorrectThreshold = newThreshold;
+void I2cEncoder::set_error_correct_method(byte method) {
+  errorCorrectMethod = method;
 }
 
 float I2cEncoder::get_error_correct_threshold() {
   return errorCorrectThreshold;
+}
+
+void I2cEncoder::set_error_correct_threshold(float newThreshold) {
+  errorCorrectThreshold = newThreshold;
 }
 
 EncoderManager::EncoderManager() {
@@ -525,6 +544,8 @@ EncoderManager::EncoderManager() {
 void EncoderManager::init() {
   byte index = 0;
 
+  //there's probably a better way to do all this, maybe something using a macro...?
+  
   #if defined(I2C_ENCODER_1_ADDR) && defined(I2C_ENCODER_1_AXIS)
     encoderArray[index].init(I2C_ENCODER_1_AXIS,I2C_ENCODER_1_ADDR);
     encoderArray[index].set_active(encoderArray[index].passes_test(true));
@@ -821,6 +842,25 @@ void EncoderManager::report_error_count(AxisEnum axis) {
 void EncoderManager::report_error_count() {
   for(int i = 0; i < NUM_AXIS; i++) {
     report_error_count((AxisEnum)i);
+  }
+}
+
+void EncoderManager::reset_error_count(AxisEnum axis) {
+
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      encoderArray[i].set_error_count(0);
+      SERIAL_ECHO("Error count on ");
+      SERIAL_ECHO(axis_codes[axis]);
+      SERIAL_ECHOLN(" axis has been reset.");
+      break;
+    }
+  }
+}
+
+void EncoderManager::reset_error_count() {
+  for(int i = 0; i < NUM_AXIS; i++) {
+    reset_error_count((AxisEnum)i);
   }
 }
 

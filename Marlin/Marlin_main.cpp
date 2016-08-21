@@ -7166,16 +7166,19 @@ inline void gcode_M907() {
 
 #if ENABLED(I2C_ENCODERS_ENABLED)
 
+  //Reads and reports the current position of a given encoder module
   inline void gcode_M860() {
     bool noOffset, units;
     AxisEnum selectedAxis;
 
+    //units (mm) or raw step count
     if (code_seen('U') || code_seen('u')) {
       units = true;
     } else {
       units = false;
     }
 
+    //include homed zero-offset in returned count
     if (code_seen('O') || code_seen('o')) {
       noOffset = true;
     } else {
@@ -7191,6 +7194,7 @@ inline void gcode_M907() {
     i2cEncoderManager.report_position(selectedAxis,units,noOffset);
   }
 
+  //Checks and reports the status of a given encoder module
   inline void gcode_M861() {
     AxisEnum selectedAxis;
 
@@ -7203,6 +7207,7 @@ inline void gcode_M907() {
     i2cEncoderManager.report_status(selectedAxis);
   }
 
+  //Performs an axis continuity test for a given encoder module / axis
   inline void gcode_M862() {
     AxisEnum selectedAxis;
     bool axisSelected = false;
@@ -7221,6 +7226,7 @@ inline void gcode_M907() {
     }
   }
 
+  //Performs an automatic steps per mm calibration for a given encoder module / axis
   inline void gcode_M863() {
     AxisEnum selectedAxis;
     int iterations = 1;
@@ -7245,12 +7251,14 @@ inline void gcode_M907() {
 
   }
 
+  //Changes a module from one I2C address to another
+  // assumes module is currently at default address,
+  // specify different current address by OXXX (i.e. O032)
+  // either specify X/Y/Z/E to select new address, or AXXX (i.e. A031)
   inline void gcode_M864() {
     AxisEnum selectedAxis;
     int newAddress, oldAddress;
     bool addressSelected = false;
-
-
 
     for(int i = 0; i < NUM_AXIS; i++) {
       if (code_seen(axis_codes[i])) {
@@ -7300,7 +7308,7 @@ inline void gcode_M907() {
     }
   }
 
-
+  //checks the firmware version of an encoder module at a given address
   inline void gcode_M865() {
     AxisEnum selectedAxis;
     int selectedAddress;
@@ -7342,9 +7350,12 @@ inline void gcode_M907() {
     }
   }
 
+  //reports current error count (see encoder config section) for a given encoder
+  // 'R' flag will reset the error count instead
   inline void gcode_M866() {
     AxisEnum selectedAxis;
     bool axisSelected = false;
+    bool reset = false;
 
     for(int i = 0; i < NUM_AXIS; i++) {
       if (code_seen(axis_codes[i])) {
@@ -7353,13 +7364,26 @@ inline void gcode_M907() {
       }
     }
 
+    if(code_seen('R') || code_seen('r')) {
+      reset = true;
+    }
+
     if(axisSelected) {
-      i2cEncoderManager.report_error_count(selectedAxis);
+      if(reset) {
+        i2cEncoderManager.reset_error_count(selectedAxis);
+      } else {
+        i2cEncoderManager.report_error_count(selectedAxis);
+      }
     } else {
-      i2cEncoderManager.report_error_count();
+      if(reset) {
+        i2cEncoderManager.reset_error_count();
+      } else {
+        i2cEncoderManager.report_error_count();
+      }
     }
   }
 
+  //Toggles error correction for a given axis on or off
   inline void gcode_M867() {
     AxisEnum selectedAxis;
     bool axisSelected = false;
@@ -8493,6 +8517,10 @@ void process_next_command() {
 
         case 867: // M351 Report encoder module status
           gcode_M867();
+          break;
+
+        case 868: // M351 Report encoder module status
+          gcode_M868();
           break;
 
       #endif // I2C_ENCODERS_ENABLED
