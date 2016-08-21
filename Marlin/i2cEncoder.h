@@ -95,6 +95,7 @@ void gcode_M864();
 void gcode_M865();
 void gcode_M866();
 void gcode_M867();
+void gcode_M868();
 
 class I2cEncoder {
     private:
@@ -136,8 +137,10 @@ class I2cEncoder {
         void calibrate_steps_mm(int iterations);
 
         int get_error_count();
+        void set_error_count(int newCount);
         
         void set_address(byte address);
+        byte get_address();
 
         void set_active(bool);
         bool get_active();
@@ -177,6 +180,8 @@ class EncoderManager {
         void check_module_firmware(int address);
         void report_error_count(AxisEnum axis);
         void report_error_count();
+        void reset_error_count(AxisEnum axis);
+        void reset_error_count();
         void toggle_error_correction(AxisEnum axis);
         void set_error_correct_threshold(AxisEnum axis, float newThreshold);
         void get_error_correct_threshold(AxisEnum axis);
