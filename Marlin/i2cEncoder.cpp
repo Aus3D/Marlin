@@ -756,7 +756,7 @@ void EncoderManager::change_module_address(int oldAddress, int newAddress) {
 
       SERIAL_ECHOLN("Address changed, waiting for confirmation...");
 
-      //Wait for the module to reset (can probably be improved by polling address instead of blindly waiting...)
+      //Wait for the module to reset (can probably be improved by polling address with a timeout)
       long startWaiting = millis();
       while(millis() - startWaiting < REBOOT_TIME) {
         idle();
@@ -768,7 +768,20 @@ void EncoderManager::change_module_address(int oldAddress, int newAddress) {
       error = Wire.endTransmission();
 
       if(error == 0) {
-        SERIAL_ECHOLN("Confirmed! Address change succesful.");
+        SERIAL_ECHOLN("Confirmed! Address change successful.");
+
+        //now, if this module is supposed to be used, find which encoder instance it corresponds to and enable it
+        // (it will likely have failed initialisation on power-up, before the address change)
+        for(byte i = 0; i < NUM_AXIS; i++) {
+          if(encoderArray[i].get_address() == newAddress) {
+            if(encoderArray[i].get_active() == false) {
+              SERIAL_ECHO(axis_codes[encoderArray[i].get_axis()]);
+              SERIAL_ECHOLN(" axis encoder was not detected on printer startup. Trying again now address is correct...");
+              encoderArray[i].set_active(encoderArray[i].passes_test(true));
+            }
+            break;
+          }
+        }
       } else {
         SERIAL_ECHOLN("Failed. Please check encoder module.");
       }
