@@ -122,7 +122,7 @@ void I2cEncoder::update() {
           }
 
 
-          if(abs(error) > ERROR_COUNTER_TRIGGER_THRESHOLD && millis() - lastErrorCountTime > ERROR_COUNTER_DEBOUNCE_MS) {
+          if(abs(error) > (ERROR_COUNTER_TRIGGER_THRESHOLD * planner.axis_steps_per_mm[encoderAxis]) && millis() - lastErrorCountTime > ERROR_COUNTER_DEBOUNCE_MS) {
             errorCount++;
             lastErrorCountTime = millis();
           }
