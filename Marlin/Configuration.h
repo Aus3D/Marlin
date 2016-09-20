@@ -1410,32 +1410,49 @@
 
 #if defined(I2C_ENCODERS_ENABLED)
 
-  //Enable and configure encoders
-  #define I2C_ENCODER_1_ADDR I2C_ENCODER_PRESET_ADDR_X
-  #define I2C_ENCODER_1_AXIS X_AXIS
-  //#define I2C_ENCODER_1_INVERT
-  #define I2C_ENCODER_1_ERROR_CORRECT_METHOD 1
-  #define I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD 0.20
+  // Enable and configure encoders
+  
+  #define I2C_ENCODER_1_ADDR I2C_ENCODER_PRESET_ADDR_X        // I2C address of the given encoder
+  #define I2C_ENCODER_1_AXIS X_AXIS                           // Axis the encoder module corresponds to
+  //#define I2C_ENCODER_1_INVERT                              // Invert the direction of axis travel
+  #define I2C_ENCODER_1_ERROR_CORRECT_METHOD ECM_MICROSTEP    // Select method that will be used to correct for detected errors
+  #define I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD 0.10          // Set the threshold below which errors will be ignored
+  #define I2C_ENCODER_1_ENCODER_TYPE  ENC_TYPE_LINEAR         // Type of encoder
+  #define I2C_ENCODER_1_TICKS_PER_UNIT  2048                  // For linear encoders this is ticks / mm, for rotary encoders this is ticks / revolution
+  //#define I2C_ENCODER_1_STEPPER_TICKS_REVOLUTION (16 * 200)   // Only needed for rotary encoders, number of stepper ticks per revolution
 
-  //#define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y
-  //#define I2C_ENCODER_2_AXIS Y_AXIS
-  //#define I2C_ENCODER_2_INVERT
+  //#define I2C_ENCODER_2_ADDR I2C_ENCODER_PRESET_ADDR_Y      // I2C address of the given encoder
+  //#define I2C_ENCODER_2_AXIS Y_AXIS                         // Axis the encoder module corresponds to
+  //#define I2C_ENCODER_2_INVERT                              // Invert the direction of axis travel
+  //#define I2C_ENCODER_2_ERROR_CORRECT_METHOD ECM_MICROSTEP  // Select method that will be used to correct for detected errors
+  //#define I2C_ENCODER_2_ERROR_CORRECT_THRESHOLD 0.20        // Set the threshold below which errors will be ignored
+  //#define I2C_ENCODER_2_ENCODER_TYPE  ENC_TYPE_LINEAR         // Type of encoder
+  //#define I2C_ENCODER_2_TICKS_PER_UNIT  2048                // For linear encoders this is ticks / mm, for rotary encoders this is ticks / revolution
+  //#define I2C_ENCODER_2_STEPPER_TICKS_REVOLUTION (16 * 200) // Only needed for rotary encoders, number of stepper ticks per revolution
 
-  //#define I2C_ENCODER_3_ADDR I2C_ENCODER_PRESET_ADDR_Z
-  //#define I2C_ENCODER_3_AXIS Z_AXIS
-  //#define I2C_ENCODER_3_INVERT
+  //#define I2C_ENCODER_3_ADDR I2C_ENCODER_PRESET_ADDR_Y      // I2C address of the given encoder
+  //#define I2C_ENCODER_3_AXIS Y_AXIS                         // Axis the encoder module corresponds to
+  //#define I2C_ENCODER_3_INVERT                              // Invert the direction of axis travel
+  //#define I2C_ENCODER_3_ERROR_CORRECT_METHOD ECM_MICROSTEP  // Select method that will be used to correct for detected errors
+  //#define I2C_ENCODER_3_ERROR_CORRECT_THRESHOLD 0.20        // Set the threshold below which errors will be ignored
+  //#define I2C_ENCODER_3_ENCODER_TYPE  ENC_TYPE_LINEAR         // Type of encoder
+  //#define I2C_ENCODER_3_TICKS_PER_UNIT  2048                // For linear encoders this is ticks / mm, for rotary encoders this is ticks / revolution
+  //#define I2C_ENCODER_3_STEPPER_TICKS_REVOLUTION (16 * 200) // Only needed for rotary encoders, number of stepper ticks per revolution
 
-  #define ENCODER_TICKS_PER_MM 2048
+  // These settings are the default, and will be used for encoders 
+  // which are enabled but do not have settings specified
+  #define DEFAULT_ENCODER_TICKS_PER_MM      2048
+  #define DEFAULT_ENCODER_TYPE              ENC_TYPE_ROTARY //type of encoder
+  #define DEFAULT_ERROR_CORRECT_METHOD      ECM_NONE        //type of error correction
+  #define DEFAULT_STEPPER_TICKS_REVOLUTION  (16 * 200)      //number of stepper steps per full revolution (motor steps per rev * microstepping)
+  #define DEFAULT_AXIS_ERROR_THRESHOLD      0.1             //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
+  #define STABLE_TIME_UNTIL_TRUSTED         10000           //after an encoder fault, there must be no further fault for this period (ms) before the encoder is trusted again
+  //#define AXIS_ERROR_THRESHOLD_ABORT      100.0           //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
 
-  //Configure error correction
-  //#define AXIS_ERROR_THRESHOLD_ABORT 100.0    //number of mm error in any given axis after which the printer will abort. Comment out to disable abort behaviour.
-  #define AXIS_ERROR_THRESHOLD_CORRECT 0.1      //number of mm in error above which the printer will attempt to correct the error, errors smaller than this are ignored to avoid measurement noise / latency (filter)
-  #define STABLE_TIME_UNTIL_TRUSTED 10000       //after an encoder fault, there must be no further fault for this period (ms) before the encoder is trusted again
-
-  #define ERROR_CORRECT_METHOD_1
-  #define STEPRATE 1
-
-  #define BABYSTEPPING  //some error correction modes rely on babystepping. We must make sure it is active for these modes.
+  //some error correction modes rely on babystepping. We must make sure it is active for these modes.
+  #if (I2C_ENCODER_1_ERROR_CORRECT_METHOD == ECM_MICROSTEP || I2C_ENCODER_2_ERROR_CORRECT_METHOD == ECM_MICROSTEP || I2C_ENCODER_3_ERROR_CORRECT_METHOD == ECM_MICROSTEP || I2C_ENCODER_4_ERROR_CORRECT_METHOD == ECM_MICROSTEP || I2C_ENCODER_5_ERROR_CORRECT_METHOD == ECM_MICROSTEP || DEFAULT_ERROR_CORRECT_METHOD == ECM_MICROSTEP)
+    #define BABYSTEPPING 
+  #endif
 
 #endif
 
