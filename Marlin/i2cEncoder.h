@@ -33,6 +33,7 @@
 //if enabled adjusts the error correction threshold proportional to the current speed of the axis
 //allows for very small error margin at low speeds without stuttering due to reading latency at high speeds
 #define ERROR_THRESHOLD_PROPORTIONAL_SPEED
+#define STEPRATE 1
 
 //enable encoder-related debug serial echos
 #define ENCODER_DEBUG_ECHOS
@@ -81,6 +82,9 @@
 #define ECM_STALLDETECT     3
 
 
+#define ENC_TYPE_ROTARY  0
+#define ENC_TYPE_LINEAR  1
+
 
 typedef union{
   volatile long val = 0;
@@ -96,12 +100,19 @@ void gcode_M865();
 void gcode_M866();
 void gcode_M867();
 void gcode_M868();
+void gcode_M869();
 
 class I2cEncoder {
     private:
 
-        byte i2cAddress = I2C_ENCODER_DEF_ADDR;
-        AxisEnum encoderAxis = I2C_ENCODER_DEF_AXIS;
+        byte i2cAddress             = I2C_ENCODER_DEF_ADDR;
+        AxisEnum encoderAxis        = I2C_ENCODER_DEF_AXIS;
+        float errorCorrectThreshold = DEFAULT_AXIS_ERROR_THRESHOLD;
+        byte errorCorrectMethod     = DEFAULT_ERROR_CORRECT_METHOD;
+        byte encoderType            = DEFAULT_ENCODER_TYPE;
+        int encoderTicksPerUnit     = DEFAULT_ENCODER_TICKS_PER_MM;
+        int stepperTicks            = DEFAULT_STEPPER_TICKS_REVOLUTION;
+
         long zeroOffset = 0;
         bool homed = false;
         bool trusted = false;
@@ -114,16 +125,16 @@ class I2cEncoder {
         long lastPosition = 0;
         unsigned long lastPositionTime = 0;
         bool errorCorrect = true;   
-        float errorCorrectThreshold = AXIS_ERROR_THRESHOLD_CORRECT;
         int errorCount = 0;
         unsigned long lastErrorCountTime = 0;
-        byte errorCorrectMethod = ECM_NONE;
+        int errorPrev = 0;
 
     public:
         void init(AxisEnum axis, byte address);
         void update();
         void set_homed();
         double get_axis_error_mm(bool report);
+        long get_axis_error_steps(bool report);
         double get_position_mm();
         double mm_from_count(long count);
         long get_position();
@@ -159,6 +170,15 @@ class I2cEncoder {
 
         float get_error_correct_threshold();
         void set_error_correct_threshold(float newThreshold);
+
+        int get_encoder_ticks_unit();
+        void set_encoder_ticks_unit(int ticks);
+
+        byte get_encoder_type();
+        void set_encoder_type(byte type);
+
+        int get_stepper_ticks();
+        void set_stepper_ticks(int ticks);
 };
 
 class EncoderManager {
@@ -172,6 +192,7 @@ class EncoderManager {
         void homed(AxisEnum axis);
         void report_position(AxisEnum axis, bool units, bool noOffset);
         void report_status(AxisEnum axis);
+        void report_error(AxisEnum axis);
         void test_axis(AxisEnum axis);
         void test_axis();
         void calibrate_steps_mm(AxisEnum axis, int iterations);
@@ -182,13 +203,21 @@ class EncoderManager {
         void report_error_count();
         void reset_error_count(AxisEnum axis);
         void reset_error_count();
-        void toggle_error_correction(AxisEnum axis);
+        void enable_error_correction(AxisEnum axis, bool enabled);
         void set_error_correct_threshold(AxisEnum axis, float newThreshold);
         void get_error_correct_threshold(AxisEnum axis);
+
+        int get_encoder_index_from_axis(AxisEnum axis);
 
 };
 
 static inline int8_t sgn(int val) {
+ if (val < 0) return -1;
+ if (val==0) return 0;
+ return 1;
+}
+
+static inline int8_t sgn(long val) {
  if (val < 0) return -1;
  if (val==0) return 0;
  return 1;

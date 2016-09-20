@@ -76,12 +76,15 @@ void I2cEncoder::update() {
           #endif
 
           //check error
-          double error = get_axis_error_mm(false);
+          long error = get_axis_error_steps(false);
+
+          //SERIAL_ECHO("Axis err*r steps: ");
+          //SERIAL_ECHOLN(error);
 
           #if defined(AXIS_ERROR_THRESHOLD_ABORT)
-            if(abs(error) > AXIS_ERROR_THRESHOLD_ABORT) {
+            if(abs(error) > AXIS_ERROR_THRESHOLD_ABORT * planner.axis_steps_per_mm[encoderAxis]) {
               //kill("Significant Error");
-              SERIAL_ECHO("Error, Kill! ");
+              SERIAL_ECHO("Axis error greater than set threshold, aborting!");
               SERIAL_ECHOLN(error);
               delay(5000);
             }
@@ -89,12 +92,15 @@ void I2cEncoder::update() {
 
           switch(get_error_correct_method()) {
             case ECM_MICROSTEP: 
-              if(abs(error) > threshold) {
-                thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
+              if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
+                //SERIAL_ECHOLN(error);
+                //SERIAL_ECHOLN(position);
+                //thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
+                thermalManager.babystepsTodo[encoderAxis] = -lround(error/2);
               }
               break;
             case ECM_PLANNER:
-              if(abs(error) > threshold) {
+              if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
                 double axisPosition[NUM_AXIS];
 
                 for(int i = 0; i < NUM_AXIS; i++) {
@@ -131,12 +137,12 @@ void I2cEncoder::update() {
 
           SERIAL_ECHO("Untrusted encoder module on ");
           SERIAL_ECHO(axis_codes[encoderAxis]);
-          SERIAL_ECHOLN(" axis has been error-free for set duration, reinstating error correction.");
+          SERIAL_ECHOLN(" axis has been fault-free for set duration, reinstating error correction.");
 
           //the encoder likely lost its place when the error occured, so we'll reset and use the printer's
           //idea of where it the axis is to re-initialise
           double position = stepper.get_axis_position_mm(encoderAxis);
-          long positionInTicks = position * ENCODER_TICKS_PER_MM;
+          long positionInTicks = position * get_encoder_ticks_unit();
 
           //shift position from previous to current position
           zeroOffset -= (positionInTicks - get_position());
@@ -164,7 +170,7 @@ void I2cEncoder::update() {
 
       if(trusted) {
         trusted = false;
-        SERIAL_ECHO("Error detected on ");
+        SERIAL_ECHO("Fault detected on ");
         SERIAL_ECHO(axis_codes[encoderAxis]);
         SERIAL_ECHOLN(" axis encoder. Disengaging error correction until module is trusted again.");
       }
@@ -249,12 +255,65 @@ double I2cEncoder::get_axis_error_mm(bool report) {
   return error;
 }
 
+long I2cEncoder::get_axis_error_steps(bool report) {
+  long encoderTicks = position;
+  long stepperTicks = stepper.position[encoderAxis];
+  long encoderCountInStepperTicksScaled;
+
+  float stepperTicksPerUnit;
+  bool suppressOutput = false;
+
+  if(get_encoder_type() == ENC_TYPE_ROTARY) {
+    // In a rotary encoder we're concerned with ticks / revolution
+    stepperTicksPerUnit = get_stepper_ticks();
+  
+  } else {
+
+    // In a linear encoder we're concerned with ticks / mm
+    stepperTicksPerUnit = planner.axis_steps_per_mm[encoderAxis];
+  }
+
+  //convert both 'ticks' into same units / base
+  encoderCountInStepperTicksScaled = lround((stepperTicksPerUnit * encoderTicks) / get_encoder_ticks_unit());
+  
+  long target = stepper.position(encoderAxis);
+  long error = (encoderCountInStepperTicksScaled - target);
+
+  //suppress discontinuities (might be caused by bad I2C readings...?)
+  if(abs(error - errorPrev) > 100) {
+    suppressOutput = true;
+  }
+
+  if(report) {
+    SERIAL_ECHO(axis_codes[encoderAxis]);
+    SERIAL_ECHO(" Target: ");
+    SERIAL_ECHOLN(target);
+    SERIAL_ECHO(axis_codes[encoderAxis]);
+    SERIAL_ECHO(" Actual: ");
+    SERIAL_ECHOLN(encoderCountInStepperTicksScaled);
+    SERIAL_ECHO(axis_codes[encoderAxis]);
+    SERIAL_ECHO(" Error : ");
+    SERIAL_ECHOLN(error);
+    if(suppressOutput) {
+      SERIAL_ECHOLN("Discontinuity detected, suppressing error.");
+    }
+  }
+
+  errorPrev = error;
+
+  return (suppressOutput ? 0 : error);
+}
+
 double I2cEncoder::get_position_mm() {
   return mm_from_count(get_position());
 }
 
 double I2cEncoder::mm_from_count(long count) {
-  return (double) count / ENCODER_TICKS_PER_MM;
+  if(get_encoder_type() == ENC_TYPE_LINEAR) {
+    return (double) count / get_encoder_ticks_unit();
+  } else if (get_encoder_type() == ENC_TYPE_ROTARY) {
+    return (double) (count * get_stepper_ticks()) / (get_encoder_ticks_unit() * planner.axis_steps_per_mm[encoderAxis]);
+  }
 }
 
 long I2cEncoder::get_position() {
@@ -373,101 +432,101 @@ void I2cEncoder::calibrate_steps_mm(int iterations) {
   float endCoord[NUM_AXIS] = {0};
   int feedrate;
 
-  if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
+  if(get_encoder_type() != ENC_TYPE_LINEAR) {
+    SERIAL_ECHOLN("Steps per mm calibration is only available using linear encoders.");
+  } else {
 
-    if(get_axis() == Z_AXIS) {
-      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_Z);
-    } else {
-      feedrate = MMM_TO_MMS(HOMING_FEEDRATE_XY);
-    }
+    if(get_axis() == X_AXIS || get_axis() == Y_AXIS || get_axis() == Z_AXIS) {
 
-    errorCorrect = false;
+      if(get_axis() == Z_AXIS) {
+        feedrate = MMM_TO_MMS(HOMING_FEEDRATE_Z);
+      } else {
+        feedrate = MMM_TO_MMS(HOMING_FEEDRATE_XY);
+      }
 
-    startDistance = 20;
-    endDistance = sw_endstop_max[get_axis()] - 20;
-    travelDistance = endDistance - startDistance;
+      errorCorrect = false;
 
-    for(int i = 0; i < NUM_AXIS; i++) {
-      startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
-      endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
-    }
+      startDistance = 20;
+      endDistance = sw_endstop_max[get_axis()] - 20;
+      travelDistance = endDistance - startDistance;
 
-    startCoord[get_axis()] = startDistance;
-    endCoord[get_axis()] = endDistance;
+      for(int i = 0; i < NUM_AXIS; i++) {
+        startCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+        endCoord[i] = stepper.get_axis_position_mm((AxisEnum) i);
+      }
+
+      startCoord[get_axis()] = startDistance;
+      endCoord[get_axis()] = endDistance;
 
 
-    for(int i = 0; i < iterations; i++) {
-      stepper.synchronize();
+      for(int i = 0; i < iterations; i++) {
+        stepper.synchronize();
 
-      planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
-      stepper.synchronize();
+        planner.buffer_line(startCoord[X_AXIS],startCoord[Y_AXIS],startCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+        stepper.synchronize();
 
-      delay(250);
-      startCount = get_position();
+        delay(250);
+        startCount = get_position();
 
-      //do_blocking_move_to(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS]);
+        //do_blocking_move_to(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS]);
 
-      planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
-      stepper.synchronize();
+        planner.buffer_line(endCoord[X_AXIS],endCoord[Y_AXIS],endCoord[Z_AXIS], stepper.get_axis_position_mm(E_AXIS), feedrate, 0);
+        stepper.synchronize();
 
-      //Read encoder distance
+        //Read encoder distance
 
-      delay(250);
-      stopCount = get_position();
+        delay(250);
+        stopCount = get_position();
 
-      travelledDistance = mm_from_count(abs(stopCount - startCount));
+        travelledDistance = mm_from_count(abs(stopCount - startCount));
 
-      SERIAL_ECHO("Attempted to travel: ");
-      SERIAL_ECHO(travelDistance);
-      SERIAL_ECHOLN("mm.");
+        SERIAL_ECHO("Attempted to travel: ");
+        SERIAL_ECHO(travelDistance);
+        SERIAL_ECHOLN("mm.");
 
-      SERIAL_ECHO("Actually travelled:  ");
-      SERIAL_ECHO(travelledDistance);
-      SERIAL_ECHOLN("mm.");
+        SERIAL_ECHO("Actually travelled:  ");
+        SERIAL_ECHO(travelledDistance);
+        SERIAL_ECHOLN("mm.");
 
-      //Calculate new axis steps per unit
-      oldStepsMm = planner.axis_steps_per_mm[get_axis()];
-      newStepsMm = (oldStepsMm * travelDistance) / travelledDistance;
+        //Calculate new axis steps per unit
+        oldStepsMm = planner.axis_steps_per_mm[get_axis()];
+        newStepsMm = (oldStepsMm * travelDistance) / travelledDistance;
 
-      SERIAL_ECHO("Old steps per mm: ");
-      SERIAL_ECHOLN(oldStepsMm);
+        SERIAL_ECHO("Old steps per mm: ");
+        SERIAL_ECHOLN(oldStepsMm);
 
-      SERIAL_ECHO("New steps per mm: ");
-      SERIAL_ECHOLN(newStepsMm);
-      
-      //Save new value
-      planner.axis_steps_per_mm[get_axis()] = newStepsMm;
+        SERIAL_ECHO("New steps per mm: ");
+        SERIAL_ECHOLN(newStepsMm);
+        
+        //Save new value
+        planner.axis_steps_per_mm[get_axis()] = newStepsMm;
+
+        if(iterations > 1) {
+          total += newStepsMm;
+
+          //swap start and end points so next loop runs from current position
+          float tempCoord = startCoord[get_axis()];
+          startCoord[get_axis()] = endCoord[get_axis()];
+          endCoord[get_axis()] = tempCoord;
+        }
+      }
 
       if(iterations > 1) {
-        total += newStepsMm;
-
-        //swap start and end points so next loop runs from current position
-        float tempCoord = startCoord[get_axis()];
-        startCoord[get_axis()] = endCoord[get_axis()];
-        endCoord[get_axis()] = tempCoord;
+        total = total / (float) iterations;
+        SERIAL_ECHO("Average steps per mm: ");
+        SERIAL_ECHOLN(total);
       }
+
+      errorCorrect = true;
+
+      SERIAL_ECHOLN("Calculated steps per mm has been set. Please save to EEPROM (M500) if you wish to keep these values.");
+    } else {
+      SERIAL_ECHOLN("Automatic steps / mm calibration not supported for this axis.");
     }
-
-    if(iterations > 1) {
-      total = total / (float) iterations;
-      SERIAL_ECHO("Average steps per mm: ");
-      SERIAL_ECHOLN(total);
-
-      //Save new value
-      //axis_steps_per_unit[get_axis()] = total;
-    }
-
-    errorCorrect = true;
-
-    SERIAL_ECHOLN("Calculated steps per mm has been set. Please save to EEPROM (M500) if you wish to keep these values.");
-  } else {
-    SERIAL_ECHOLN("Automatic steps / mm calibration not supported for this axis.");
   }
-
 }
 
 void I2cEncoder::set_zeroed() {
-  //Set module to report magnetic strength
   Wire.beginTransmission(i2cAddress);
   Wire.write(I2C_RESET_COUNT);
   Wire.endTransmission();
@@ -537,6 +596,31 @@ void I2cEncoder::set_error_correct_threshold(float newThreshold) {
   errorCorrectThreshold = newThreshold;
 }
 
+int I2cEncoder::get_encoder_ticks_unit() {
+  return encoderTicksPerUnit;
+}
+
+void I2cEncoder::set_encoder_ticks_unit(int ticks) {
+  encoderTicksPerUnit = ticks;
+}
+
+byte I2cEncoder::get_encoder_type() {
+  return encoderType;
+}
+
+void I2cEncoder::set_encoder_type(byte type) {
+  encoderType = type;
+}
+
+int I2cEncoder::get_stepper_ticks() {
+  return stepperTicks;
+}
+
+void I2cEncoder::set_stepper_ticks(int ticks) {
+  stepperTicks = ticks;
+}
+
+
 EncoderManager::EncoderManager() {
   Wire.begin(); // We use no address so we will join the BUS as the master
 }
@@ -558,6 +642,18 @@ void EncoderManager::init() {
     #if defined (I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD)
       encoderArray[index].set_error_correct_threshold(I2C_ENCODER_1_ERROR_CORRECT_THRESHOLD);
     #endif
+    #if defined (I2C_ENCODER_1_TICKS_PER_UNIT)
+      encoderArray[index].set_encoder_ticks_unit(I2C_ENCODER_1_TICKS_PER_UNIT);
+    #endif
+    #if defined (I2C_ENCODER_1_ENCODER_TYPE)
+      encoderArray[index].set_encoder_type(I2C_ENCODER_1_ENCODER_TYPE);
+    #endif
+    #if defined (I2C_ENCODER_1_STEPPER_TICKS_REVOLUTION)
+      encoderArray[index].set_stepper_ticks(I2C_ENCODER_1_STEPPER_TICKS_REVOLUTION);
+    #endif
+    //#if (I2C_ENCODER_1_AXIS == E_AXIS)
+    //  encoderArray[index].set_homed();
+    //#endif
     index++;
   #endif  
 
@@ -572,6 +668,18 @@ void EncoderManager::init() {
     #endif
     #if defined (I2C_ENCODER_2_ERROR_CORRECT_THRESHOLD)
       encoderArray[index].set_error_correct_threshold(I2C_ENCODER_2_ERROR_CORRECT_THRESHOLD);
+    #endif
+    #if defined (I2C_ENCODER_2_TICKS_PER_UNIT)
+      encoderArray[index].set_encoder_ticks_unit(I2C_ENCODER_2_TICKS_PER_UNIT);
+    #endif
+    #if defined (I2C_ENCODER_2_ENCODER_TYPE)
+      encoderArray[index].set_encoder_type(I2C_ENCODER_2_ENCODER_TYPE);
+    #endif
+    #if defined (I2C_ENCODER_2_STEPPER_TICKS_REVOLUTION)
+      encoderArray[index].set_stepper_ticks(I2C_ENCODER_2_STEPPER_TICKS_REVOLUTION);
+    #endif
+    #if (I2C_ENCODER_2_AXIS == E_AXIS)
+      encoderArray[index].set_homed();
     #endif
     index++;
   #endif  
@@ -588,6 +696,18 @@ void EncoderManager::init() {
     #if defined (I2C_ENCODER_3_ERROR_CORRECT_THRESHOLD)
       encoderArray[index].set_error_correct_threshold(I2C_ENCODER_3_ERROR_CORRECT_THRESHOLD);
     #endif
+    #if defined (I2C_ENCODER_3_TICKS_PER_UNIT)
+      encoderArray[index].set_encoder_ticks_unit(I2C_ENCODER_3_TICKS_PER_UNIT);
+    #endif
+    #if defined (I2C_ENCODER_3_ENCODER_TYPE)
+      encoderArray[index].set_encoder_type(I2C_ENCODER_3_ENCODER_TYPE);
+    #endif
+    #if defined (I2C_ENCODER_3_STEPPER_TICKS_REVOLUTION)
+      encoderArray[index].set_stepper_ticks(I2C_ENCODER_3_STEPPER_TICKS_REVOLUTION);
+    #endif
+    #if (I2C_ENCODER_3_AXIS == E_AXIS)
+      encoderArray[index].set_homed();
+    #endif
     index++;
   #endif  
 
@@ -602,6 +722,18 @@ void EncoderManager::init() {
     #endif
     #if defined (I2C_ENCODER_4_ERROR_CORRECT_THRESHOLD)
       encoderArray[index].set_error_correct_threshold(I2C_ENCODER_4_ERROR_CORRECT_THRESHOLD);
+    #endif
+    #if defined (I2C_ENCODER_4_TICKS_PER_UNIT)
+      encoderArray[index].set_encoder_ticks_unit(I2C_ENCODER_4_TICKS_PER_UNIT);
+    #endif
+    #if defined (I2C_ENCODER_4_ENCODER_TYPE)
+      encoderArray[index].set_encoder_type(I2C_ENCODER_4_ENCODER_TYPE);
+    #endif
+    #if defined (I2C_ENCODER_4_STEPPER_TICKS_REVOLUTION)
+      encoderArray[index].set_stepper_ticks(I2C_ENCODER_4_STEPPER_TICKS_REVOLUTION);
+    #endif
+    #if (I2C_ENCODER_4_AXIS == E_AXIS)
+      encoderArray[index].set_homed();
     #endif
     index++;
   #endif  
@@ -618,15 +750,26 @@ void EncoderManager::init() {
     #if defined (I2C_ENCODER_5_ERROR_CORRECT_THRESHOLD)
       encoderArray[index].set_error_correct_threshold(I2C_ENCODER_5_ERROR_CORRECT_THRESHOLD);
     #endif
+    #if defined (I2C_ENCODER_5_TICKS_PER_UNIT)
+      encoderArray[index].set_encoder_ticks_unit(I2C_ENCODER_5_TICKS_PER_UNIT);
+    #endif
+    #if defined (I2C_ENCODER_5_ENCODER_TYPE)
+      encoderArray[index].set_encoder_type(I2C_ENCODER_5_ENCODER_TYPE);
+    #endif
+    #if defined (I2C_ENCODER_5_STEPPER_TICKS_REVOLUTION)
+      encoderArray[index].set_stepper_ticks(I2C_ENCODER_5_STEPPER_TICKS_REVOLUTION);
+    #endif
+    #if (I2C_ENCODER_5_AXIS == E_AXIS)
+      encoderArray[index].set_homed();
+    #endif
     index++;
-  #endif  
+  #endif   
 
 }
 
 void EncoderManager::update() {
 
   //consider only updating one endoder per call / tick if encoders become too time intensive
-
   for(byte i = 0; i < NUM_AXIS; i++) {
     encoderArray[i].update(); 
   }
@@ -657,9 +800,16 @@ void EncoderManager::report_position(AxisEnum axis, bool units, bool noOffset) {
         }
       }
       break;
-    } //else {
-      //SERIAL_ECHO("Encoder not operational");
-    //}
+    } 
+  }
+}
+
+void EncoderManager::report_error(AxisEnum axis) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis && encoderArray[i].get_active()) {
+      encoderArray[i].get_axis_error_steps(true);
+      break;
+    } 
   }
 }
 
@@ -877,11 +1027,11 @@ void EncoderManager::reset_error_count() {
   }
 }
 
-void EncoderManager::toggle_error_correction(AxisEnum axis) {
+void EncoderManager::enable_error_correction(AxisEnum axis, bool enable) {
 
   for(byte i = 0; i < NUM_AXIS; i++) {
     if(encoderArray[i].get_axis() == axis) {
-      encoderArray[i].set_error_correct_enabled(!encoderArray[i].get_error_correct_enabled());
+      encoderArray[i].set_error_correct_enabled(enable);
       SERIAL_ECHO("Error correction on ");
       SERIAL_ECHO(axis_codes[axis]);
       SERIAL_ECHO(" axis is ");
@@ -908,7 +1058,7 @@ void EncoderManager::get_error_correct_threshold(AxisEnum axis) {
 
   for(byte i = 0; i < NUM_AXIS; i++) {
     if(encoderArray[i].get_axis() == axis) {
-      encoderArray[i].get_error_correct_threshold();
+      threshold = encoderArray[i].get_error_correct_threshold();
       break;
     }
   }
@@ -920,8 +1070,14 @@ void EncoderManager::get_error_correct_threshold(AxisEnum axis) {
     SERIAL_ECHO(threshold);
     SERIAL_ECHOLN("mm.");
   }
+}
 
-
+int EncoderManager::get_encoder_index_from_axis(AxisEnum axis) {
+  for(byte i = 0; i < NUM_AXIS; i++) {
+    if(encoderArray[i].get_axis() == axis) {
+      return i;
+    }
+  }
 }
 
 #endif

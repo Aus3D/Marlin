@@ -7754,6 +7754,10 @@ void process_next_command() {
           gcode_M868();
           break;
 
+        case 869: // M351 Report axis error
+          gcode_M869();
+          break;
+
       #endif // I2C_ENCODERS_ENABLED
 
       case 999: // M999: Restart after being Stopped
@@ -9112,6 +9116,8 @@ void calculate_volumetric_multipliers() {
   inline void gcode_M867() {
     AxisEnum selectedAxis;
     bool axisSelected = false;
+    bool toggle = true;
+    bool enable = false;
 
     for(int i = 0; i < NUM_AXIS; i++) {
       if (code_seen(axis_codes[i])) {
@@ -9120,8 +9126,16 @@ void calculate_volumetric_multipliers() {
       }
     }
 
+    if(code_seen('O') || code_seen('o')) {
+      enable = true;
+      toggle = false;
+    } else if (code_seen('D') || code_seen('d')) {
+      enable = false;
+      toggle = false;
+    }
+
     if(axisSelected) {
-      i2cEncoderManager.toggle_error_correction(selectedAxis);
+      i2cEncoderManager.enable_error_correction(selectedAxis, enable);
     } 
   }
 
@@ -9154,6 +9168,28 @@ void calculate_volumetric_multipliers() {
         i2cEncoderManager.get_error_correct_threshold((AxisEnum)i);
       }
     }
+  }
+
+
+  //Error
+  inline void gcode_M869() {
+    bool units;
+    AxisEnum selectedAxis;
+
+    //units (mm) or raw step count
+    if (code_seen('U') || code_seen('u')) {
+      units = true;
+    } else {
+      units = false;
+    }
+
+    for(int i = 0; i < NUM_AXIS; i++) {
+      if (code_seen(axis_codes[i])) {
+        selectedAxis = AxisEnum(i);
+      }
+    }
+
+    i2cEncoderManager.report_error(selectedAxis);
   }
 
 
