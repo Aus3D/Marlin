@@ -317,7 +317,7 @@ double I2cEncoder::mm_from_count(long count) {
 }
 
 long I2cEncoder::get_position() {
-  return get_raw_count() - zeroOffset;
+  return get_raw_count() - zeroOffset - axisOffsetTicks;
 }
 
 long I2cEncoder::get_raw_count() {
@@ -618,6 +618,15 @@ int I2cEncoder::get_stepper_ticks() {
 
 void I2cEncoder::set_stepper_ticks(int ticks) {
   stepperTicks = ticks;
+}
+
+float I2cEncoder::get_axis_offset() {
+  return axisOffset;
+}
+
+void I2cEncoder::set_axis_offset(float newOffset) {
+  axisOffset = newOffset;
+  axisOffsetTicks = axisOffset * planner.axis_steps_per_mm[get_axis()];
 }
 
 
@@ -1073,11 +1082,14 @@ void EncoderManager::get_error_correct_threshold(AxisEnum axis) {
 }
 
 int EncoderManager::get_encoder_index_from_axis(AxisEnum axis) {
+  int index = -1;
   for(byte i = 0; i < NUM_AXIS; i++) {
     if(encoderArray[i].get_axis() == axis) {
-      return i;
+      index = i;
+      break;
     }
   }
+  return index;
 }
 
 #endif

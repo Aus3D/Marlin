@@ -113,6 +113,8 @@ class I2cEncoder {
         int encoderTicksPerUnit     = DEFAULT_ENCODER_TICKS_PER_MM;
         int stepperTicks            = DEFAULT_STEPPER_TICKS_REVOLUTION;
 
+        float axisOffset = 0;
+        int axisOffsetTicks = 0;
         long zeroOffset = 0;
         bool homed = false;
         bool trusted = false;
@@ -179,11 +181,14 @@ class I2cEncoder {
 
         int get_stepper_ticks();
         void set_stepper_ticks(int ticks);
+
+        float get_axis_offset();
+        void set_axis_offset(float newOffset);
 };
 
 class EncoderManager {
     private:
-        I2cEncoder encoderArray[NUM_AXIS];
+        
 
     public:
         EncoderManager();
@@ -208,6 +213,8 @@ class EncoderManager {
         void get_error_correct_threshold(AxisEnum axis);
 
         int get_encoder_index_from_axis(AxisEnum axis);
+
+        I2cEncoder encoderArray[NUM_AXIS];
 
 };
 
