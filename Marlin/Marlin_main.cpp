@@ -4386,6 +4386,10 @@ inline void gcode_G92() {
           didXYZ = true;
           position_shift[i] += v - p; // Offset the coordinate space
           update_software_endstops((AxisEnum)i);
+
+          #if ENABLED(I2C_ENCODERS_ENABLED)
+            i2cEncoderManager.encoderArray[i2cEncoderManager.get_encoder_index_from_axis((AxisEnum)i].set_axis_offset(position_shift[i]);
+          #endif
         }
       #endif
     }
