@@ -596,6 +596,15 @@ void I2cEncoder::set_error_correct_threshold(float newThreshold) {
   errorCorrectThreshold = newThreshold;
 }
 
+int I2cEncoder::get_encoder_ticks_mm() {
+  switch(get_encoder_type()) {
+    case ENC_TYPE_LINEAR:
+      return get_encoder_ticks_unit();
+    case ENC_TYPE_ROTARY:
+      return ((get_encoder_ticks_unit() / get_stepper_ticks()) * planner.axis_steps_per_mm[encoderAxis]);
+  }
+}
+
 int I2cEncoder::get_encoder_ticks_unit() {
   return encoderTicksPerUnit;
 }
@@ -624,9 +633,13 @@ float I2cEncoder::get_axis_offset() {
   return axisOffset;
 }
 
+void I2cEncoder::set_current_position(float newPositionMm) {
+  set_axis_offset(get_position_mm() - newPositionMm + get_axis_offset());
+}
+
 void I2cEncoder::set_axis_offset(float newOffset) {
   axisOffset = newOffset;
-  axisOffsetTicks = axisOffset * planner.axis_steps_per_mm[get_axis()];
+  axisOffsetTicks = axisOffset * get_encoder_ticks_mm();
 }
 
 

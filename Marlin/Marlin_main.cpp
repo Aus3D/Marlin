@@ -4388,7 +4388,7 @@ inline void gcode_G92() {
           update_software_endstops((AxisEnum)i);
 
           #if ENABLED(I2C_ENCODERS_ENABLED)
-            i2cEncoderManager.encoderArray[i2cEncoderManager.get_encoder_index_from_axis((AxisEnum)i].set_axis_offset(position_shift[i]);
+            i2cEncoderManager.encoderArray[i2cEncoderManager.get_encoder_index_from_axis((AxisEnum)i)].set_axis_offset(position_shift[i]);
           #endif
         }
       #endif
