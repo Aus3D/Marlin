@@ -114,7 +114,7 @@ class I2cEncoder {
         int stepperTicks            = DEFAULT_STEPPER_TICKS_REVOLUTION;
 
         float axisOffset = 0;
-        int axisOffsetTicks = 0;
+        long axisOffsetTicks = 0;
         long zeroOffset = 0;
         bool homed = false;
         bool trusted = false;
@@ -149,6 +149,8 @@ class I2cEncoder {
         bool test_axis();
         void calibrate_steps_mm(int iterations);
 
+        void set_current_position(float newPositionMm) ;
+
         int get_error_count();
         void set_error_count(int newCount);
         
@@ -172,6 +174,8 @@ class I2cEncoder {
 
         float get_error_correct_threshold();
         void set_error_correct_threshold(float newThreshold);
+
+        int get_encoder_ticks_mm();
 
         int get_encoder_ticks_unit();
         void set_encoder_ticks_unit(int ticks);

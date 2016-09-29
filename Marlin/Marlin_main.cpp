@@ -3969,7 +3969,7 @@ inline void gcode_G92() {
         didXYZ = true;
 
         #if ENABLED(I2C_ENCODERS_ENABLED)
-          i2cEncoderManager.encoderArray[i2cEncoderManager.get_encoder_index_from_axis(i)].set_axis_offset(position_shift[i]);
+          i2cEncoderManager.encoderArray[i2cEncoderManager.get_encoder_index_from_axis(i)].set_current_position(v);
         #endif
       }
     }
