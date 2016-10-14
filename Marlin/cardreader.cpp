@@ -211,6 +211,115 @@ void CardReader::ls()  {
 
 #endif // LONG_FILENAME_HOST_SUPPORT
 
+#if ENABLED(JSON_OUTPUT)
+  void CardReader::lsJSON(char *path) {
+
+    //workDir = workDirParents[0];
+
+    bool firstOccurence;
+    char *segment;
+
+    //move up to root
+    workDir = root;
+    root.rewind();
+    while(filename[0] == '/') {
+      updir();
+    }
+
+    lsAction = LS_GetFilename;
+
+    int i, pathLen = strlen(path);
+
+    //SERIAL_ECHOPGM("Full Path: "); SERIAL_ECHOLN(path);
+
+    // Zero out slashes to make segments
+    for (i = 0; i < pathLen; i++) if (path[i] == '/') path[i] = '\0';
+
+    SdFile diveDir = root; // start from the root for segment 1
+    for (i = 0; i < pathLen;) {
+
+      if (path[i] == '\0') i++; // move past a single nul
+
+      segment = &path[i]; // The segment after most slashes
+
+      // If a segment is empty (extra-slash) then exit
+      if (!*segment) break;
+
+      // Go to the next segment
+      while (path[++i]) { }
+
+      //SERIAL_ECHOPGM("Looking for segment: "); SERIAL_ECHOLN(segment);
+
+      // Find the item, setting the long filename
+      diveDir.rewind();
+      lsDive("", diveDir, segment);
+
+      // Print /LongNamePart to serial output
+      //SERIAL_PROTOCOLCHAR('/');
+      //SERIAL_PROTOCOL(longFilename[0] ? longFilename : filename);
+
+      // If the filename was printed then that's it
+      if (!filenameIsDir) break;
+
+      //SERIAL_ECHOPGM("Opening dir: "); SERIAL_ECHOLN(segment);
+       
+
+      // Open the sub-item as the new dive parent
+      SdFile dir;
+      if (!dir.open(diveDir, segment, O_READ)) {
+        //SERIAL_EOL;
+        //SERIAL_ECHO_START;
+        //SERIAL_ECHOPGM(MSG_SD_CANT_OPEN_SUBDIR);
+        //SERIAL_ECHO(segment);
+        break;
+      }
+
+      chdir(segment);
+
+      diveDir.close();
+      diveDir = dir;
+
+    } // while i<pathLen
+
+    //chdir(path);
+    //*/
+
+    uint16_t fileCnt = getnrfilenames();
+
+    SERIAL_ECHO("{\"dir\":\"\\/");
+    if(getWorkDirName()[0] != '/')
+      SERIAL_ECHO("gcodes");
+      //SERIAL_ECHO(getWorkDirName());
+    SERIAL_ECHO("\",\"files\":[");
+
+    firstOccurence = true;
+    for (uint16_t i = 0; i < fileCnt; i++) {
+      if(!firstOccurence) {
+        SERIAL_ECHO(",");
+      }
+      getfilename(i);
+
+      SERIAL_ECHO("\"");
+
+      if (filenameIsDir) {
+        SERIAL_ECHO('*');
+      }
+
+      SERIAL_ECHO(longFilename[0] ? longFilename : filename);
+      SERIAL_ECHO("\"");
+      firstOccurence = false;
+    }
+
+    SERIAL_ECHOLN("]}");
+
+   
+    //
+
+    //root.rewind();
+    //lsDive(filename, root);
+  }
+#endif
+
 void CardReader::initsd() {
   cardOK = false;
   if (root.isOpen()) root.close();
@@ -296,6 +405,14 @@ void CardReader::getAbsFilename(char *t) {
     file.getFilename(t);
   else
     t[0] = 0;
+}
+
+uint32_t CardReader::getFilesize() {
+  return filesize;
+}
+
+uint32_t CardReader::getSdpos() {
+  return sdpos;
 }
 
 void CardReader::openFile(char* name, bool read, bool push_current/*=false*/) {

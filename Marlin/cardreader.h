@@ -64,10 +64,17 @@ public:
 
   void getAbsFilename(char *t);
 
+  uint32_t getFilesize();
+  uint32_t getSdpos();
+
   void ls();
   void chdir(const char *relpath);
   void updir();
   void setroot();
+
+  #if ENABLED(JSON_OUTPUT)
+    void lsJSON(char *filename);
+  #endif
 
   FORCE_INLINE void pauseSDPrint() { sdprinting = false; }
   FORCE_INLINE bool isFileOpen() { return file.isOpen(); }

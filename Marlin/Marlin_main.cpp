@@ -4483,9 +4483,24 @@ inline void gcode_M17() {
    * M20: List SD card to serial output
    */
   inline void gcode_M20() {
-    SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
-    card.ls();
-    SERIAL_PROTOCOLLNPGM(MSG_END_FILE_LIST);
+  	#if ENABLED(JSON_OUTPUT)
+  		if(code_seen('S') && code_value_ushort() == 2) {
+  			if(code_seen('P')) {
+  				//SERIAL_ECHOLN(current_command_args);
+  				//SERIAL_ECHOLN(current_command_args+4);
+  				card.lsJSON(current_command_args+4);
+
+  			}
+  		} else {
+  			SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
+		    card.ls();
+		    SERIAL_PROTOCOLLNPGM(MSG_END_FILE_LIST);
+  		}
+  	#else
+	    SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
+	    card.ls();
+	    SERIAL_PROTOCOLLNPGM(MSG_END_FILE_LIST);
+    #endif
   }
 
   /**
