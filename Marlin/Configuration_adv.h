@@ -545,6 +545,9 @@
 // Set this if you find stepping unreliable, or if using a very fast CPU.
 #define MINIMUM_STEPPER_PULSE 0 // (µs) The smallest stepper pulse allowed
 
+// Enable JSON-style responses to particular G-Code messages (M408, M20)
+//#define JSON_OUTPUT
+
 // @section temperature
 
 // Control heater 0 and heater 1 in parallel.

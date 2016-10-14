@@ -7152,6 +7152,326 @@ inline void gcode_M907() {
 
 #endif // MIXING_EXTRUDER
 
+#if ENABLED(JSON_OUTPUT)
+
+inline void showJSONStatus(int type) {
+	bool firstOccurence;
+
+	SERIAL_ECHO("{\"status\": \"");
+	if(planner.movesplanned() == 0) {
+		SERIAL_ECHO('I'); // IDLING
+	#if ENABLED(SDSUPPORT)
+		} else if (IS_SD_PRINTING) {
+			SERIAL_ECHO('P');	// SD PRINTING
+	#endif
+		} else {
+			SERIAL_ECHO('B');
+		}
+
+	SERIAL_ECHO("\",\"coords\": {");
+	SERIAL_ECHO("\"axesHomed\":[");
+
+	firstOccurence = true;
+	for(int i = 0; i < 3; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		if(axis_homed[i]) {
+			SERIAL_ECHO("1");
+		} else {
+			SERIAL_ECHO("0");
+		}
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("],\"extr\":[");
+
+	firstOccurence = true;
+	for(int i = 0; i < EXTRUDERS; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+		SERIAL_ECHO(stepper.get_axis_position_mm(E_AXIS) / planner.axis_steps_per_mm[E_AXIS]);	//stepper.e_steps[i]
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("],\"xyz\":[");
+
+	firstOccurence = true;
+	for(int i = 0; i < 3; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(stepper.get_axis_position_mm((AxisEnum)i));
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("]},\"currentTool\":");
+
+	SERIAL_ECHO((int)active_extruder);
+
+	SERIAL_ECHO(",\"params\": {\"atxPower\":");
+
+	#if HAS_POWER_SWITCH
+		SERIAL_ECHO(powersupply? '1' : '0');
+	#else 
+		SERIAL_ECHO('1');
+	#endif
+
+	SERIAL_ECHO(",\"fanPercent\":[");
+
+	firstOccurence = true;
+	for(int i = 0; i < FAN_COUNT; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(fanSpeeds[i] / 2.55f);
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("],\"speedFactor\":");
+
+	SERIAL_ECHO(feedrate_percentage);
+
+	SERIAL_ECHO(",\"extrFactors\":[");
+
+	firstOccurence = true;
+	for(int i = 0; i < EXTRUDERS; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(flow_percentage[i]);
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("]},");
+
+	SERIAL_ECHO("\"temps\": {");
+
+	if(TEMP_SENSOR_BED != 0) {
+		SERIAL_ECHO("\"bed\": {\"current\":");
+		SERIAL_ECHO(thermalManager.current_temperature_bed);
+		SERIAL_ECHO(",\"active\":");
+		SERIAL_ECHO(thermalManager.target_temperature_bed);
+		SERIAL_ECHO(",\"state\":");
+		SERIAL_ECHO(thermalManager.target_temperature_bed > 0 ? '2' : '1');
+		SERIAL_ECHO("},");
+	}
+
+	SERIAL_ECHO("\"heads\": {\"current\": [");
+
+	firstOccurence = true;
+	for(int i = 0; i < HOTENDS; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(thermalManager.current_temperature[i]);
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("],\"active\": [");
+
+	firstOccurence = true;
+	for(int i = 0; i < HOTENDS; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(thermalManager.target_temperature[i]);
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("],\"state\": [");
+
+	firstOccurence = true;
+	for(int i = 0; i < HOTENDS; i++) {
+		if(!firstOccurence) {
+			SERIAL_ECHO(",");
+		}
+
+		SERIAL_ECHO(thermalManager.target_temperature[i] > 0 ? '2' : '1');
+		firstOccurence = false;
+	}
+
+	SERIAL_ECHO("]}},\"time\":");
+	SERIAL_ECHO(millis());
+
+	switch(type) {
+		default:
+		case 0:
+		case 1:
+			break;
+		case 2:
+			SERIAL_ECHO(",\"coldExtrudeTemp\":0,\"coldRetractTemp\":0.0,\"geometry\":\"");
+
+			#if ENABLED(DELTA)
+				SERIAL_ECHO("delta");
+		    #elif IS_SCARA
+		      	SERIAL_ECHO("scara");
+		    #elif ENABLED(COREXY)
+	    		SERIAL_ECHO("coreXY"); 
+	    	#elif ENABLED(COREXZ)
+	    		SERIAL_ECHO("coreXZ");
+	    	#elif ENABLED(COREYZ)
+		    	SERIAL_ECHO("coreYZ");
+		    #else
+		    	SERIAL_ECHO("cartesian");
+		    #endif
+
+		    SERIAL_ECHO("\",\"name\":\"");
+		    SERIAL_ECHO(MACHINE_NAME);
+
+		    SERIAL_ECHO("\",\"tools\":[");
+
+		    firstOccurence = true;
+			for(int i = 0; i < EXTRUDERS; i++) {
+				if(!firstOccurence) {
+					SERIAL_ECHO(",");
+				}
+
+				SERIAL_ECHO("{\"number\":");
+				SERIAL_ECHO(i);
+				SERIAL_ECHO(",\"heaters\":[1],\"drives\":[1]");
+				SERIAL_ECHO('}');
+
+				firstOccurence = false;
+			}
+
+			SERIAL_ECHO("]");
+			break;
+		case 3:
+			SERIAL_ECHO(",\"currentLayer\":");
+
+			#if ENABLED(SDSUPPORT)
+				if(IS_SD_PRINTING) {
+					SERIAL_ECHO(stepper.get_axis_position_mm(Z_AXIS));	//need to extract info from SD file, TODO
+				} else {
+					SERIAL_ECHO('0');
+				}
+			#else
+				SERIAL_ECHO("-1");
+			#endif
+
+			SERIAL_ECHO(",\"extrRaw\":[");
+
+			firstOccurence = true;
+			for(int i = 0; i < EXTRUDERS; i++) {
+				if(!firstOccurence) {
+					SERIAL_ECHO(",");
+				}
+
+				SERIAL_ECHO(stepper.get_axis_position_mm(E_AXIS) * flow_percentage[i]);	//stepper.e_steps[i]
+				firstOccurence = false;
+			}
+
+			SERIAL_ECHO("],");
+
+			#if ENABLED(SDSUPPORT)
+				if(IS_SD_PRINTING) {
+
+					SERIAL_ECHO("\"fractionPrinted\":");
+
+					float fraction;
+
+					if(card.getFilesize() < 2000000) {
+						fraction = card.getSdpos() / card.getFilesize();
+					} else {
+						fraction = (card.getSdpos() >> 8) / (card.getFilesize() >> 8);
+					}
+
+					SERIAL_ECHO((float) floorf(fraction * 1000) / 1000);
+					SERIAL_ECHO(',');
+
+				}
+
+			#endif
+
+				SERIAL_ECHO("\"firstLayerHeight\":");
+
+			#if ENABLED(SDSUPPORT)
+				if(IS_SD_PRINTING) {
+					SERIAL_ECHO('0'); //need to extract info from SD file, TODO
+				} else {
+					SERIAL_ECHO('0');
+				}
+
+			#else
+				SERIAL_ECHO('0');
+			#endif
+
+			break;
+		case 4:
+		case 5:
+			SERIAL_ECHO(",\"axisMins\":[");
+			SERIAL_ECHO(X_MIN_POS);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(Y_MIN_POS);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(Z_MIN_POS);
+			SERIAL_ECHO("],\"axisMaxes\":[");
+			SERIAL_ECHO(X_MAX_POS);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(Y_MAX_POS);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(Z_MAX_POS);
+			SERIAL_ECHO("],\"accelerations\":[");
+			SERIAL_ECHO(planner.max_acceleration_mm_per_s2[X_AXIS]);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(planner.max_acceleration_mm_per_s2[Y_AXIS]);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(planner.max_acceleration_mm_per_s2[Z_AXIS]);
+
+			for(int i = 0; i < EXTRUDERS; i++) {
+				SERIAL_ECHO(',');
+				SERIAL_ECHO(planner.max_acceleration_mm_per_s2[E_AXIS]);
+			}
+			SERIAL_ECHO("],\"firmwareElectronics\":\"");
+			SERIAL_ECHO("AVR");
+
+			SERIAL_ECHO("\",\"firmwareName\":\"Marlin\",\"firmwareVersion\":\"");
+			SERIAL_ECHO(SHORT_BUILD_VERSION);
+
+			SERIAL_ECHO("\",\"minFeedrates\":[0,0,0");
+
+			for(int i = 0; i < EXTRUDERS; i++) {
+				SERIAL_ECHO(",0");
+			}
+
+			SERIAL_ECHO("],\"maxFeedrates\":[");
+			SERIAL_ECHO(planner.max_feedrate_mm_s[X_AXIS]);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(planner.max_feedrate_mm_s[Y_AXIS]);
+			SERIAL_ECHO(',');
+			SERIAL_ECHO(planner.max_feedrate_mm_s[Z_AXIS]);
+
+			for(int i = 0; i < EXTRUDERS; i++) {
+				SERIAL_ECHO(',');
+				SERIAL_ECHO(planner.max_feedrate_mm_s[E_AXIS]);
+			}
+
+			SERIAL_ECHO("]");
+			break;
+	}
+
+	SERIAL_ECHOLN("}");
+
+}
+
+inline void gcode_M408() {
+	if (code_seen('S')) {
+		showJSONStatus(code_value_int());
+	} else {
+		showJSONStatus(0);
+	}	
+}
+
+#endif //JSON_OUTPUT
+
 /**
  * M999: Restart after being stopped
  *
@@ -8110,6 +8430,12 @@ void process_next_command() {
           gcode_M407();
           break;
       #endif // ENABLED(FILAMENT_WIDTH_SENSOR)
+
+	  #if ENABLED(JSON_OUTPUT)
+        case 408:
+        	gcode_M408();
+        	break;
+	  #endif // ENABLED(JSON_OUTPUT)
 
       #if ENABLED(MESH_BED_LEVELING)
         case 420: // M420: Enable/Disable Mesh Bed Leveling
