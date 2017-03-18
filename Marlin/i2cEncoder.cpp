@@ -77,7 +77,20 @@ void I2cEncoder::update() {
           #endif
 
           //check error
-          long error = get_axis_error_steps(false);
+          #if ENABLED(ERROR_ROLLING_AVERAGE)
+            ((errArrayIndex >= ERROR_ARRAY_SIZE - 1) ? (errArrayIndex = 0) : errArrayIndex++);
+            errorArray[errArrayIndex] = get_axis_error_steps(false);
+            double  sum = 0;
+            uint8_t count = 0;
+            for (int i=0;i<ERROR_ARRAY_SIZE;i++) {
+              sum += errorArray[i];
+              if (abs(errorArray[i]) > threshold * planner.axis_steps_per_mm[encoderAxis]) count++;
+            }
+            long error = (long)(sum/(ERROR_ARRAY_SIZE + 1)); //calculate average for error
+
+          #else
+            long error = get_axis_error_steps(false);
+          #endif
 
           //SERIAL_ECHO("Axis err*r steps: ");
           //SERIAL_ECHOLN(error);
@@ -93,15 +106,42 @@ void I2cEncoder::update() {
 
           switch(get_error_correct_method()) {
             case ECM_MICROSTEP: 
-              if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
-                //SERIAL_ECHOLN(error);
-                //SERIAL_ECHOLN(position);
-                //thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
-                thermalManager.babystepsTodo[encoderAxis] = -lround(error/2);
-              }
+              #if ENABLED(ERROR_ROLLING_AVERAGE) 
+                if(errArrayIndex == 0) {
+                  if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis] && count > ERROR_ARRAY_SIZE-1) { //Check for persistent error (skip)
+                    SERIAL_ECHO(axis_codes[get_axis()]);//Verbose JDK
+                    SERIAL_ECHO(" err detected: ");    //Verbose JDK                
+                    SERIAL_ECHO(error / planner.axis_steps_per_mm[encoderAxis]);
+                    SERIAL_ECHOLN("mm");
+                    if(sigError == true){
+                      SERIAL_ECHOLN("Correcting");
+                      thermalManager.babystepsTodo[encoderAxis] = -lround(error);
+                      sigError = false;
+                    }else{
+                      sigError = true;
+                    }
+                    for (int i = 0; i < ERROR_ARRAY_SIZE; i++) {
+                      errorArray[i] = 0;
+                    }
+                  }else{
+                    sigError = false;
+                  }
+                }
+              #else
+                if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
+                  //SERIAL_ECHOLN(error);
+                  //SERIAL_ECHOLN(position);
+                  //thermalManager.babystepsTodo[encoderAxis] -= STEPRATE * sgn(error);
+                  thermalManager.babystepsTodo[encoderAxis] = -lround(error/2);
+                }
+              #endif
               break;
             case ECM_PLANNER:
-              if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
+              #if ENABLED(ERROR_ROLLING_AVERAGE) 
+                if(errArrayIndex == 0 && abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis] && count >= ERROR_ARRAY_SIZE-1) { //Check for persistent error (skip)
+              #else
+                if(abs(error) > threshold * planner.axis_steps_per_mm[encoderAxis]) {
+              #endif
                 double axisPosition[NUM_AXIS];
 
                 for(int i = 0; i < NUM_AXIS; i++) {
@@ -545,6 +585,11 @@ void I2cEncoder::set_zeroed() {
   Wire.beginTransmission(i2cAddress);
   Wire.write(I2C_RESET_COUNT);
   Wire.endTransmission();
+  #if ENABLED(ERROR_ROLLING_AVERAGE)
+    for (int i = 0; i < ERROR_ARRAY_SIZE; i++) {
+      errorArray[i] = 0;
+    }
+  #endif
 }
 
 AxisEnum I2cEncoder::get_axis() {
