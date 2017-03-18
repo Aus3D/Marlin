@@ -73,7 +73,11 @@
 #define ERROR_COUNTER_TRIGGER_THRESHOLD     1.00
 #define ERROR_COUNTER_DEBOUNCE_MS           2000
 
-
+//Use a rolling average to identify persistant errors that indicate skips vs vibration and noise
+#define ERROR_ROLLING_AVERAGE
+#if ENABLED(ERROR_ROLLING_AVERAGE)
+  #define ERROR_ARRAY_SIZE 8
+#endif
 
 //Error Correction Methods
 #define ECM_NONE            0
@@ -131,7 +135,12 @@ class I2cEncoder {
         unsigned long lastErrorCountTime = 0;
         int errorPrev = 0;
         byte magneticStrength = I2C_MAG_SIG_BAD;
-
+        #if ENABLED(ERROR_ROLLING_AVERAGE)
+        int errorArray[ERROR_ARRAY_SIZE] = {0};
+        uint8_t errArrayIndex = 0;
+        bool sigError = false;
+        #endif
+  
     public:
         void init(AxisEnum axis, byte address);
         void update();
