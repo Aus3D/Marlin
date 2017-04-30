@@ -152,9 +152,9 @@
   inline void lcd_update() {}
   inline void lcd_init() {}
   inline bool lcd_hasstatus() { return false; }
-  inline void lcd_setstatus(const char* const message, const bool persist=false) { UNUSED(message); UNUSED(persist); }
-  inline void lcd_setstatuspgm(const char* const message, const uint8_t level=0) { UNUSED(message); UNUSED(level); }
-  inline void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...) { UNUSED(level); UNUSED(fmt); }
+  inline void lcd_setstatus(const char* const message, const bool persist=false) { UNUSED_M(message); UNUSED_M(persist); }
+  inline void lcd_setstatuspgm(const char* const message, const uint8_t level=0) { UNUSED_M(message); UNUSED_M(level); }
+  inline void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...) { UNUSED_M(level); UNUSED_M(fmt); }
   inline void lcd_buttons_update() {}
   inline void lcd_reset_alert_level() {}
   inline bool lcd_detected() { return true; }
