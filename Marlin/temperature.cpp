@@ -513,7 +513,7 @@ void Temperature::max_temp_error(int8_t e) {
   #else
     _temp_error(HOTEND_INDEX, PSTR(MSG_T_MAXTEMP), PSTR(MSG_ERR_MAXTEMP));
     #if HOTENDS == 1
-      UNUSED(e);
+      UNUSED_M(e);
     #endif
   #endif
 }
@@ -523,14 +523,14 @@ void Temperature::min_temp_error(int8_t e) {
   #else
     _temp_error(HOTEND_INDEX, PSTR(MSG_T_MINTEMP), PSTR(MSG_ERR_MINTEMP));
     #if HOTENDS == 1
-      UNUSED(e);
+      UNUSED_M(e);
     #endif
   #endif
 }
 
 float Temperature::get_pid_output(int e) {
   #if HOTENDS == 1
-    UNUSED(e);
+    UNUSED_M(e);
     #define _HOTEND_TEST     true
   #else
     #define _HOTEND_TEST     e == active_extruder
@@ -882,7 +882,7 @@ float Temperature::analog2tempBed(int raw) {
 
   #else
 
-    UNUSED(raw);
+    UNUSED_M(raw);
     return 0;
 
   #endif
@@ -1156,7 +1156,7 @@ void Temperature::init() {
    */
   void Temperature::start_watching_heater(uint8_t e) {
     #if HOTENDS == 1
-      UNUSED(e);
+      UNUSED_M(e);
     #endif
     if (degHotend(HOTEND_INDEX) < degTargetHotend(HOTEND_INDEX) - (WATCH_TEMP_INCREASE + TEMP_HYSTERESIS + 1)) {
       watch_target_temp[HOTEND_INDEX] = degHotend(HOTEND_INDEX) + WATCH_TEMP_INCREASE;
@@ -1952,7 +1952,7 @@ void Temperature::isr() {
     }
   #endif
 
-  cli();
+  //cli(); //todo: why do we do this? Breaking for me
   in_temp_isr = false;
   ENABLE_TEMPERATURE_INTERRUPT(); //re-enable Temperature ISR
 }

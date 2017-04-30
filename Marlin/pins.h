@@ -225,6 +225,8 @@
   #include "pins_RAMPS4DUE.h"
 #elif MB(ALLIGATOR)
   #include "pins_ALLIGATOR_R2.h"
+#elif MB(PICOPRINT)
+  #include "pins_PICOPRINT.h"
 #elif MB(99)
   #include "pins_99.h"
 #elif MB(AJ4P)

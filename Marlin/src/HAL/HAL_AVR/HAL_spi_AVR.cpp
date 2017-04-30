@@ -141,7 +141,7 @@ void spiBegin (void) {
   /** Set SPI rate */
   void spiInit(uint8_t spiRate) {
     // nothing to do
-    UNUSED(spiRate);
+    UNUSED_M(spiRate);
   }
 
   //------------------------------------------------------------------------------

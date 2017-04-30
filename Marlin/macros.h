@@ -34,8 +34,8 @@
 // Clock speed factor
 #define CYCLES_PER_MICROSECOND (F_CPU / 1000000UL) // 16 or 20
 
-// Remove compiler warning on an unused variable
-#define UNUSED(x) (void) (x)
+// Remove compiler warning on an UNUSED_M variable
+#define UNUSED_M(x) (void) (x)
 
 // Macros to make a string from a macro
 #define STRINGIFY_(M) #M
@@ -45,7 +45,7 @@
 #define TEST(n,b) (((n)&_BV(b))!=0)
 #define SBI(n,b) (n |= _BV(b))
 #define CBI(n,b) (n &= ~_BV(b))
-#define SET_BIT(n,b,value) (n) ^= ((-value)^(n)) & (_BV(b))
+#define SET_BIT_M(n,b,value) (n) ^= ((-value)^(n)) & (_BV(b))
 
 // Macros for maths shortcuts
 #ifndef M_PI

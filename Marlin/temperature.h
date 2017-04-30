@@ -133,12 +133,12 @@ class Temperature {
       static float extrude_min_temp;
       static bool tooColdToExtrude(uint8_t e) {
         #if HOTENDS == 1
-          UNUSED(e);
+          UNUSED_M(e);
         #endif
         return allow_cold_extrude ? false : degHotend(HOTEND_INDEX) < extrude_min_temp;
       }
     #else
-      static bool tooColdToExtrude(uint8_t e) { UNUSED(e); return false; }
+      static bool tooColdToExtrude(uint8_t e) { UNUSED_M(e); return false; }
     #endif
 
   private:
@@ -255,19 +255,19 @@ class Temperature {
     #ifdef MILLISECONDS_PREHEAT_TIME
       static bool is_preheating(uint8_t e) {
         #if HOTENDS == 1
-          UNUSED(e);
+          UNUSED_M(e);
         #endif
         return preheat_end_time[HOTEND_INDEX] && PENDING(millis(), preheat_end_time[HOTEND_INDEX]);
       }
       static void start_preheat_time(uint8_t e) {
         #if HOTENDS == 1
-          UNUSED(e);
+          UNUSED_M(e);
         #endif
         preheat_end_time[HOTEND_INDEX] = millis() + MILLISECONDS_PREHEAT_TIME;
       }
       static void reset_preheat_time(uint8_t e) {
         #if HOTENDS == 1
-          UNUSED(e);
+          UNUSED_M(e);
         #endif
         preheat_end_time[HOTEND_INDEX] = 0;
       }
@@ -287,7 +287,7 @@ class Temperature {
 
     static float degHotend(uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       return current_temperature[HOTEND_INDEX];
     }
@@ -296,7 +296,7 @@ class Temperature {
     #if ENABLED(SHOW_TEMP_ADC_VALUES)
     static float rawHotendTemp(uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       return current_temperature_raw[HOTEND_INDEX];
     }
@@ -305,7 +305,7 @@ class Temperature {
 
     static float degTargetHotend(uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       return target_temperature[HOTEND_INDEX];
     }
@@ -321,7 +321,7 @@ class Temperature {
 
     static void setTargetHotend(const float& celsius, uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       #ifdef MILLISECONDS_PREHEAT_TIME
         if (celsius == 0.0f)
@@ -344,7 +344,7 @@ class Temperature {
 
     static bool isHeatingHotend(uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       return target_temperature[HOTEND_INDEX] > current_temperature[HOTEND_INDEX];
     }
@@ -352,7 +352,7 @@ class Temperature {
 
     static bool isCoolingHotend(uint8_t e) {
       #if HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       return target_temperature[HOTEND_INDEX] < current_temperature[HOTEND_INDEX];
     }

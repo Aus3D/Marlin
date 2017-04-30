@@ -174,8 +174,13 @@ extern volatile uint8_t buttons;  //an extended version of the last checked butt
   LCD_CLASS lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 #else
   // Standard directly connected LCD implementations
-  #include <LiquidCrystal.h>
-  #define LCD_CLASS LiquidCrystal
+  #if defined(STM32F4)
+    #include "src\HAL\HAL_STM32\LiquidCrystal\LiquidCrystalSTM32.h"
+    #define LCD_CLASS LiquidCrystalSTM32
+  #else
+    #include <LiquidCrystal.h>
+    #define LCD_CLASS LiquidCrystal
+  #endif  
   LCD_CLASS lcd(LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D4, LCD_PINS_D5, LCD_PINS_D6, LCD_PINS_D7); //RS,Enable,D4,D5,D6,D7
 #endif
 
@@ -815,7 +820,7 @@ static void lcd_implementation_status_screen() {
   #endif // FILAMENT_CHANGE_FEATURE
 
   static void lcd_implementation_drawmenu_static(const uint8_t row, const char* pstr, const bool center=true, const bool invert=false, const char *valstr=NULL) {
-    UNUSED(invert);
+    UNUSED_M(invert);
     char c;
     int8_t n = LCD_WIDTH;
     lcd.setCursor(0, row);
@@ -910,7 +915,7 @@ static void lcd_implementation_status_screen() {
   #if ENABLED(SDSUPPORT)
 
     static void lcd_implementation_drawmenu_sd(const bool sel, const uint8_t row, const char* const pstr, const char* filename, char* const longFilename, const uint8_t concat, const char post_char) {
-      UNUSED(pstr);
+      UNUSED_M(pstr);
       char c;
       uint8_t n = LCD_WIDTH - concat;
       lcd.setCursor(0, row);

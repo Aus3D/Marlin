@@ -2,6 +2,9 @@
  * Marlin 3D Printer Firmware
  * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
+ * Based on Sprinter and grbl.
+ * Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -17,26 +20,36 @@
  *
  */
 
+#ifdef STM32F4
+ 
+#include "../../../MarlinConfig.h"
 
-#ifndef HAL_SPI_PINS_H_
-#define HAL_SPI_PINS_H_
+#if ENABLED(USE_WATCHDOG)
 
-#ifdef ARDUINO_ARCH_SAM
+    #include "watchdog_STM32.h"
+	#include "STM32_HAL.h"
 
-  #include "HAL_DUE/spi_pins.h"
+	IWDG_HandleTypeDef hiwdg;
 
-#elif defined(ARDUINO_ARCH_AVR)
+    void watchdog_init() {
+		hiwdg.Instance = IWDG;
+		hiwdg.Init.Prescaler = IWDG_PRESCALER_32;	//32kHz LSI clock and 32x prescalar = 1024Hz IWDG clock
+		hiwdg.Init.Reload = 4095; 					//4095 counts = 4 seconds at 1024Hz
+		if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+		{
+			//Error_Handler();
+		}
+    }
 
-  #include "HAL_AVR/spi_pins.h"
+    void watchdog_reset() {
+		/* Refresh IWDG: reload counter */
+		if (HAL_IWDG_Refresh(&hiwdg) != HAL_OK)
+		{
+			/* Refresh Error */
+			//Error_Handler();
+		}
+    }
 
-#elif defined(STM32F4)
-
-  #include "HAL_STM32/spi_pins.h"
-
-#else
-
-  #error Unsupported Platform!
+#endif // USE_WATCHDOG
 
 #endif
-
-#endif /* HAL_SPI_PINS_H_ */

@@ -1215,8 +1215,8 @@ inline bool code_value_bool() { return !code_has_value() || code_value_byte() > 
 #else
 
   inline float code_value_linear_units() { return code_value_float(); }
-  inline float code_value_axis_units(int axis) { UNUSED(axis); return code_value_float(); }
-  inline float code_value_per_axis_unit(int axis) { UNUSED(axis); return code_value_float(); }
+  inline float code_value_axis_units(int axis) { UNUSED_M(axis); return code_value_float(); }
+  inline float code_value_per_axis_unit(int axis) { UNUSED_M(axis); return code_value_float(); }
 
 #endif
 
@@ -8673,8 +8673,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       // Set the new active extruder
       active_extruder = tmp_extruder;
 
-      UNUSED(fr_mm_s);
-      UNUSED(no_move);
+      UNUSED_M(fr_mm_s);
+      UNUSED_M(no_move);
 
     #endif // HOTENDS <= 1
 
@@ -10977,7 +10977,7 @@ void kill(const char* lcd_msg) {
   #if ENABLED(ULTRA_LCD)
     kill_screen(lcd_msg);
   #else
-    UNUSED(lcd_msg);
+    UNUSED_M(lcd_msg);
   #endif
 
   _delay_ms(250); // Wait a short time

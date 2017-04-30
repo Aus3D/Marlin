@@ -29,6 +29,7 @@
 #include "stepper.h"
 #include "configuration_store.h"
 #include "utility.h"
+#include <stdarg.h>
 
 #if HAS_BUZZER && DISABLED(LCD_USE_I2C_BUZZER)
   #include "buzzer.h"
@@ -350,7 +351,7 @@ uint16_t max_display_update_time = 0;
   #define END_MENU() \
     } \
     _countedItems = _thisItemNr; \
-    UNUSED(_skipStatic)
+    UNUSED_M(_skipStatic)
 
   #if ENABLED(ENCODER_RATE_MULTIPLIER)
 
@@ -619,7 +620,7 @@ void kill_screen(const char* lcd_msg) {
     #elif PIN_EXISTS(BEEPER)
       buzzer.tone(duration, freq);
     #else
-      UNUSED(duration); UNUSED(freq);
+      UNUSED_M(duration); UNUSED_M(freq);
     #endif
   }
 
@@ -1127,7 +1128,7 @@ void kill_screen(const char* lcd_msg) {
     #if TEMP_SENSOR_BED != 0
       if (tempb >= 0) thermalManager.setTargetBed(tempb);
     #else
-      UNUSED(tempb);
+      UNUSED_M(tempb);
     #endif
     #if FAN_COUNT > 0
       #if FAN_COUNT > 1
@@ -1136,7 +1137,7 @@ void kill_screen(const char* lcd_msg) {
         fanSpeeds[0] = fan;
       #endif
     #else
-      UNUSED(fan);
+      UNUSED_M(fan);
     #endif
     lcd_return_to_status();
   }
@@ -2100,14 +2101,14 @@ void kill_screen(const char* lcd_msg) {
     // grab the PID value out of the temp variable; scale it; then update the PID driver
     void copy_and_scalePID_i(int e) {
       #if DISABLED(PID_PARAMS_PER_HOTEND) || HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       PID_PARAM(Ki, e) = scalePID_i(raw_Ki);
       thermalManager.updatePID();
     }
     void copy_and_scalePID_d(int e) {
       #if DISABLED(PID_PARAMS_PER_HOTEND) || HOTENDS == 1
-        UNUSED(e);
+        UNUSED_M(e);
       #endif
       PID_PARAM(Kd, e) = scalePID_d(raw_Kd);
       thermalManager.updatePID();
@@ -3140,13 +3141,13 @@ void kill_screen(const char* lcd_msg) {
   #if ENABLED(SDSUPPORT)
 
     void menu_action_sdfile(const char* filename, char* longFilename) {
-      UNUSED(longFilename);
+      UNUSED_M(longFilename);
       card.openAndPrintFile(filename);
       lcd_return_to_status();
     }
 
     void menu_action_sddirectory(const char* filename, char* longFilename) {
-      UNUSED(longFilename);
+      UNUSED_M(longFilename);
       card.chdir(filename);
       encoderPosition = 0;
       screen_changed = true;
@@ -3155,7 +3156,7 @@ void kill_screen(const char* lcd_msg) {
 
   #endif //SDSUPPORT
 
-  void menu_action_setting_edit_bool(const char* pstr, bool* ptr) {UNUSED(pstr); *ptr = !(*ptr); lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW; }
+  void menu_action_setting_edit_bool(const char* pstr, bool* ptr) {UNUSED_M(pstr); *ptr = !(*ptr); lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW; }
   void menu_action_setting_edit_callback_bool(const char* pstr, bool* ptr, screenFunc_t callback) {
     menu_action_setting_edit_bool(pstr, ptr);
     (*callback)();
@@ -3530,7 +3531,7 @@ void set_utf_strlen(char* s, uint8_t n) {
 void lcd_finishstatus(bool persist=false) {
   set_utf_strlen(lcd_status_message, LCD_WIDTH);
   #if !(ENABLED(LCD_PROGRESS_BAR) && (PROGRESS_MSG_EXPIRE > 0))
-    UNUSED(persist);
+    UNUSED_M(persist);
   #endif
 
   #if ENABLED(LCD_PROGRESS_BAR)
@@ -3570,7 +3571,11 @@ void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...) {
   lcd_status_message_level = level;
   va_list args;
   va_start(args, fmt);
-  vsnprintf_P(lcd_status_message, 3 * (LCD_WIDTH), fmt, args);
+  #if defined(ARDUINO_ARCH_AVR)  
+    vsnprintf_P(lcd_status_message, 3 * (LCD_WIDTH), fmt, args);
+  #else
+    vsnprintf(lcd_status_message, 3 * (LCD_WIDTH), fmt, args);
+  #endif
   va_end(args);
   lcd_finishstatus(level > 0);
 }

@@ -720,7 +720,7 @@ static void lcd_implementation_status_screen() {
 
   // Draw a generic menu item
   static void lcd_implementation_drawmenu_generic(const bool isSelected, const uint8_t row, const char* pstr, const char pre_char, const char post_char) {
-    UNUSED(pre_char);
+    UNUSED_M(pre_char);
 
     lcd_implementation_mark_as_selected(row, isSelected);
 
@@ -835,7 +835,7 @@ static void lcd_implementation_status_screen() {
   #if ENABLED(SDSUPPORT)
 
     static void _drawmenu_sd(const bool isSelected, const uint8_t row, const char* const pstr, const char* filename, char* const longFilename, const bool isDir) {
-      UNUSED(pstr);
+      UNUSED_M(pstr);
 
       lcd_implementation_mark_as_selected(row, isSelected);
 

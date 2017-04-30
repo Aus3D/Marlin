@@ -2,6 +2,9 @@
  * Marlin 3D Printer Firmware
  * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
+ * Based on Sprinter and grbl.
+ * Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -17,26 +20,18 @@
  *
  */
 
+#ifndef WATCHDOG_STM32_H
+#define WATCHDOG_STM32_H
 
-#ifndef HAL_SPI_PINS_H_
-#define HAL_SPI_PINS_H_
+//#include "../../../Marlin.h"
 
-#ifdef ARDUINO_ARCH_SAM
+#include "STM32_HAL.h"
 
-  #include "HAL_DUE/spi_pins.h"
+// Arduino Due core now has watchdog support
 
-#elif defined(ARDUINO_ARCH_AVR)
+extern IWDG_HandleTypeDef hiwdg;
 
-  #include "HAL_AVR/spi_pins.h"
+void watchdog_init();
+void watchdog_reset();
 
-#elif defined(STM32F4)
-
-  #include "HAL_STM32/spi_pins.h"
-
-#else
-
-  #error Unsupported Platform!
-
-#endif
-
-#endif /* HAL_SPI_PINS_H_ */
+#endif /* WATCHDOG_STM32_H */
