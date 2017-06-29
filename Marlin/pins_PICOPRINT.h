@@ -73,7 +73,7 @@
 // Steppers
 //
 
-//#define ALL_ENABLE_PIN		_STM32_PIN(PORTE, 0)
+#define STEPPER_ENABLE_PIN		_STM32_PIN(PORTE, 0)
 
 #define X_STEP_PIN         _STM32_PIN(PORTC, 6)
 #define X_DIR_PIN          _STM32_PIN(PORTC, 7)
@@ -112,6 +112,10 @@
 #define E4_STEP_PIN        _STM32_PIN(PORTE, 1)
 #define E4_DIR_PIN         _STM32_PIN(PORTE, 2)
 #define E4_ENABLE_PIN      _STM32_PIN(PORTE, 3)
+
+#define SPI4_SCK_PIN       _STM32_PIN(PORTE, 12)
+#define SPI4_MISO_PIN      _STM32_PIN(PORTE, 13)
+#define SPI4_MOSI_PIN      _STM32_PIN(PORTE, 14)
 
 
 
