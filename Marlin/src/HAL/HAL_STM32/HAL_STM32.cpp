@@ -34,7 +34,6 @@
 #include "../HAL.h"
 
 #include <Wire.h>
-#include "STM32_HAL.h"
 
 // --------------------------------------------------------------------------
 // Externals
@@ -125,5 +124,6 @@ uint16_t HAL_adc_get_result(void) {
 	// nop
 	return HAL_adc_result;
 }
+
 
 #endif // STM32F4

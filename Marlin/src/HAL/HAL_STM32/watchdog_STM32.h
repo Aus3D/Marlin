@@ -23,12 +23,6 @@
 #ifndef WATCHDOG_STM32_H
 #define WATCHDOG_STM32_H
 
-//#include "../../../Marlin.h"
-
-#include "STM32_HAL.h"
-
-// Arduino Due core now has watchdog support
-
 extern IWDG_HandleTypeDef hiwdg;
 
 void watchdog_init();
