@@ -31,13 +31,14 @@
  * For ARDUINO_ARCH_SAM
  */
 
-#ifdef ARDUINO_ARCH_SAM
+#ifdef STM32F4
 
 // --------------------------------------------------------------------------
 // Includes
 // --------------------------------------------------------------------------
 
 #include "../../../MarlinConfig.h"
+#include "SPI.h"
 
 // --------------------------------------------------------------------------
 // Public Variables
@@ -220,86 +221,41 @@
 
   // Write single byte to SPI
   void spiSend(byte b) {
-    // write byte with address and end transmission flag
-    SPI0->SPI_TDR = (uint32_t)b | SPI_PCS(SPI_CHAN) | SPI_TDR_LASTXFER;
-    // wait for transmit register empty
-    while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-    // wait for receive register
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-    // clear status
-    SPI0->SPI_RDR;
-    //delayMicroseconds(1U);
+    SPI.transfer(b);
   }
+
+  // void spiSendInstance(byte b, int instance) {
+  //   switch(instance) {
+  //     case 0: 
+  //       SPI.transfer(b);
+  //       break;
+  //     case 1:
+
+  //   }
+  // }
 
   void spiSend(const uint8_t* buf, size_t n) {
     if (n == 0) return;
-    for (size_t i = 0; i < n - 1; i++) {
-      SPI0->SPI_TDR = (uint32_t)buf[i] | SPI_PCS(SPI_CHAN);
-      while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-      while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-      SPI0->SPI_RDR;
-      //delayMicroseconds(1U);
-    }
-    spiSend(buf[n - 1]);
+    SPI.transfer(buf,n);
   }
 
   void spiSend(uint32_t chan, byte b) {
-    uint8_t dummy_read = 0;
-    // wait for transmit register empty
-    while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-    // write byte with address and end transmission flag
-    SPI0->SPI_TDR = (uint32_t)b | SPI_PCS(chan) | SPI_TDR_LASTXFER;
-    // wait for receive register
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-    // clear status
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 1)
-      dummy_read = SPI0->SPI_RDR;
-    UNUSED_M(dummy_read);
+    SPI.transfer(b);
   }
 
   void spiSend(uint32_t chan, const uint8_t* buf, size_t n) {
-    uint8_t dummy_read = 0;
     if (n == 0) return;
-    for (int i = 0; i < (int)n - 1; i++) {
-      while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-      SPI0->SPI_TDR = (uint32_t)buf[i] | SPI_PCS(chan);
-      while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-      while ((SPI0->SPI_SR & SPI_SR_RDRF) == 1)
-        dummy_read = SPI0->SPI_RDR;
-      UNUSED_M(dummy_read);
-    }
-    spiSend(chan, buf[n - 1]);
+    SPI.transfer(buf,n);
   }
 
   // Read single byte from SPI
   uint8_t spiRec() {
-    // write dummy byte with address and end transmission flag
-    SPI0->SPI_TDR = 0x000000FF | SPI_PCS(SPI_CHAN) | SPI_TDR_LASTXFER;
-    // wait for transmit register empty
-    while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-
-    // wait for receive register
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-    // get byte from receive register
-    //delayMicroseconds(1U);
-    return SPI0->SPI_RDR;
+    return SPI.transfer(0xFF);
   }
 
   uint8_t spiRec(uint32_t chan) {
-    uint8_t spirec_tmp;
-    // wait for transmit register empty
-    while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 1)
-      spirec_tmp =  SPI0->SPI_RDR;
-      UNUSED_M(spirec_tmp);
-
-    // write dummy byte with address and end transmission flag
-    SPI0->SPI_TDR = 0x000000FF | SPI_PCS(chan) | SPI_TDR_LASTXFER;
-
-    // wait for receive register
-    while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-    // get byte from receive register
-    return SPI0->SPI_RDR;
+    UNUSED_M(chan);
+    return SPI.transfer(0xFF);
   }
 
   // Read from SPI into buffer
@@ -307,11 +263,7 @@
     if (nbyte-- == 0) return;
 
     for (int i = 0; i < nbyte; i++) {
-      //while ((SPI0->SPI_SR & SPI_SR_TDRE) == 0);
-      SPI0->SPI_TDR = 0x000000FF | SPI_PCS(SPI_CHAN);
-      while ((SPI0->SPI_SR & SPI_SR_RDRF) == 0);
-      buf[i] = SPI0->SPI_RDR;
-      //delayMicroseconds(1U);
+      buf[i] = SPI.transfer(0xFF);;
     }
     buf[nbyte] = spiRec();
   }
@@ -333,4 +285,4 @@
   }
 #endif // ENABLED(SOFTWARE_SPI)
 
-#endif // ARDUINO_ARCH_SAM
+#endif // STM32F4

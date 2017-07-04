@@ -11033,6 +11033,32 @@ void stop() {
  */
 void setup() {
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  
+  //for(int i = 0; i < 2; i++) {
+    digitalWrite(LED_BUILTIN, HIGH);
+  //  delay(500);
+  //  digitalWrite(LED_BUILTIN,LOW);
+  //  delay(500);
+  //}
+
+  pinMode(E2_ENABLE_PIN, OUTPUT);
+  pinMode(E3_DIR_PIN, OUTPUT);
+  pinMode(E4_STEP_PIN, OUTPUT);
+  pinMode(E4_ENABLE_PIN, OUTPUT);
+  //for(int i = 0; i < 50; i++) {
+  //  TOGGLE(E2_ENABLE_PIN);
+  //  delay(1);
+  //}
+
+  SerialUSB.begin(250000);
+  
+  while(SerialUSB.available()==0)
+  {
+    SerialUSB.println("Hi there!");
+    delay(100);
+  }
+
   #ifdef DISABLE_JTAG
     // Disable JTAG on AT90USB chips to free up pins for IO
     MCUCR = 0x80;
@@ -11055,7 +11081,7 @@ void setup() {
     watchdog_init();
   #endif
 
-  MYSERIAL.begin(BAUDRATE);
+  //MYSERIAL.begin(BAUDRATE);
   SERIAL_PROTOCOLLNPGM("start");
   SERIAL_ECHO_START;
 

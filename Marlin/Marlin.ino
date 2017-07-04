@@ -58,7 +58,11 @@
 
 #if ENABLED(HAVE_TMCDRIVER)
   #include <SPI.h>
-  #include <TMC26XStepper.h>
+  #if defined(STM32F4)
+    #include "src\HAL\HAL_STM32\TMC26XStepper\TMC26XStepperSTM32.h"
+  #else
+    #include <TMC26XStepper.h>
+  #endif
 #endif
 
 #if ENABLED(HAVE_TMC2130)

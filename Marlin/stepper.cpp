@@ -323,9 +323,9 @@ void Stepper::isr() {
     #define SPLIT(L) do { \
       _SPLIT(L); \
       if (ENDSTOPS_ENABLED && L > ENDSTOP_NOMINAL_OCR_VAL) { \
-        uint16_t remainder = (uint16_t)L % (ENDSTOP_NOMINAL_OCR_VAL); \
+        HAL_TIMER_TYPE remainder = (HAL_TIMER_TYPE)L % (ENDSTOP_NOMINAL_OCR_VAL); \
         ocr_val = (remainder < OCR_VAL_TOLERANCE) ? ENDSTOP_NOMINAL_OCR_VAL + remainder : ENDSTOP_NOMINAL_OCR_VAL; \
-        step_remaining = (uint16_t)L - ocr_val; \
+        step_remaining = (HAL_TIMER_TYPE)L - ocr_val; \
       } \
     } while(0)
 
@@ -342,7 +342,10 @@ void Stepper::isr() {
 
       _NEXT_ISR(ocr_val);
       #ifdef CPU_32_BIT
-        //todo: HAL?
+        // Make sure stepper interrupt does not monopolise CPU by adjusting count to give about 8 us room
+        uint32_t stepper_timer_count = HAL_timer_get_count(STEP_TIMER_NUM);
+        uint32_t stepper_timer_current_count = HAL_timer_get_current_count(STEP_TIMER_NUM) + 8 * HAL_TICKS_PER_US;
+        HAL_timer_set_count(STEP_TIMER_NUM, stepper_timer_count < stepper_timer_current_count ? stepper_timer_current_count : stepper_timer_count);
       #else
         NOLESS(OCR1A, TCNT1 + 16);
       #endif
