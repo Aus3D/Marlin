@@ -1,0 +1,162 @@
+/**
+ * Marlin 3D Printer Firmware
+ *
+ * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * Copyright (c) 2016 Bob Cousins bobcousins42@googlemail.com
+ * Copyright (c) 2015-2016 Nico Tonnhofer wurstnase.reprap@gmail.com
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+/**
+ * HAL for stm32duino.com based on Libmaple and compatible (STM32F1)
+ */
+
+#ifdef STM32F4
+// --------------------------------------------------------------------------
+// Includes
+// --------------------------------------------------------------------------
+
+#include "../HAL.h"
+
+#include "HAL_timers_STM32F4.h"
+
+// --------------------------------------------------------------------------
+// Externals
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Local defines
+// --------------------------------------------------------------------------
+
+#define NUM_HARDWARE_TIMERS 2
+
+//#define PRESCALER 1
+// --------------------------------------------------------------------------
+// Types
+// --------------------------------------------------------------------------
+
+
+// --------------------------------------------------------------------------
+// Public Variables
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Private Variables
+// --------------------------------------------------------------------------
+
+tTimerConfig timerConfig[NUM_HARDWARE_TIMERS];
+
+// --------------------------------------------------------------------------
+// Function prototypes
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Private functions
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Public functions
+// --------------------------------------------------------------------------
+
+/*
+Timer_clock1: Prescaler 1 -> 80MHz
+Timer_clock1: Prescaler 2 -> 40MHz
+Timer_clock2: Prescaler 8 -> 10MHz
+Timer_clock3: Prescaler 32 -> 2.5MHz
+*/
+
+/**
+ * TODO: Calculate Timer prescale value, so we get the 32bit to adjust
+ */
+bool timers_initialised[NUM_HARDWARE_TIMERS] = {false};
+
+void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
+
+  if(!timers_initialised[timer_num]) {
+    switch (timer_num) {
+      case STEP_TIMER_NUM:
+      //STEPPER TIMER TIM5 //use a 32bit timer 
+      __HAL_RCC_TIM5_CLK_ENABLE();
+      timerConfig[0].timerdef.Instance               = TIM5;
+      timerConfig[0].timerdef.Init.Prescaler         = (STEPPER_TIMER_PRESCALE);
+      timerConfig[0].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;
+      timerConfig[0].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+      timerConfig[0].IRQ_Id = TIM5_IRQn;
+      timerConfig[0].callback = (uint32_t)TC5_Handler;
+      NVIC_SetPriority(timerConfig[0].IRQ_Id, 1);
+      pinMode(STEPPER_ENABLE_PIN,OUTPUT);
+      digitalWrite(STEPPER_ENABLE_PIN,LOW);
+      break;
+    case TEMP_TIMER_NUM:
+      //TEMP TIMER TIM7 // any available 16bit Timer (1 already used for PWM)
+      __HAL_RCC_TIM7_CLK_ENABLE();
+      timerConfig[1].timerdef.Instance               = TIM7;
+      timerConfig[1].timerdef.Init.Prescaler         = (TEMP_TIMER_PRESCALE); 
+      timerConfig[1].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;   
+      timerConfig[1].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+      timerConfig[1].IRQ_Id = TIM7_IRQn;
+      timerConfig[1].callback = (uint32_t)TC7_Handler;
+      NVIC_SetPriority(timerConfig[1].IRQ_Id, 2);
+      break;
+    }
+    timers_initialised[timer_num] = true;
+  }
+
+  timerConfig[timer_num].timerdef.Init.Period =  ((HAL_TIMER_RATE / timerConfig[timer_num].timerdef.Init.Prescaler) / (frequency)) - 1;
+
+  if(HAL_TIM_Base_Init(&timerConfig[timer_num].timerdef)  == HAL_OK ){
+    HAL_TIM_Base_Start_IT(&timerConfig[timer_num].timerdef);
+  } 
+
+}
+
+//forward the interrupt
+extern "C" void TIM5_IRQHandler()
+{
+    ((void(*)(void))timerConfig[0].callback)();
+}
+extern "C" void TIM7_IRQHandler()
+{
+    ((void(*)(void))timerConfig[1].callback)();
+}
+
+void HAL_timer_set_count (uint8_t timer_num, uint32_t count) {
+  __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, count);
+}
+
+void HAL_timer_enable_interrupt (uint8_t timer_num) {
+  NVIC_EnableIRQ(timerConfig[timer_num].IRQ_Id);
+}
+
+void HAL_timer_disable_interrupt (uint8_t timer_num) {
+  NVIC_DisableIRQ(timerConfig[timer_num].IRQ_Id);
+}
+
+HAL_TIMER_TYPE HAL_timer_get_count (uint8_t timer_num) {
+  return __HAL_TIM_GetAutoreload(&timerConfig[timer_num].timerdef);
+}
+
+uint32_t HAL_timer_get_current_count(uint8_t timer_num) {
+  return __HAL_TIM_GetCounter(&timerConfig[timer_num].timerdef);
+}
+
+void HAL_timer_isr_prologue (uint8_t timer_num) {
+  if (__HAL_TIM_GET_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE) == SET) {
+    __HAL_TIM_CLEAR_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE);
+  }
+}
+
+#endif // __STM32F1__

@@ -46,6 +46,10 @@ void endstop_ISR(void) { endstop_ISR_worker(); }
 
   #include "HAL_TEENSY35_36/endstop_interrupts.h"
 
+#elif defined(STM32F4)
+
+  #include "HAL_STM32F4/endstop_interrupts.h"
+
 #else
 
   #error Unsupported Platform!

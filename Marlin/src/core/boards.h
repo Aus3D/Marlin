@@ -124,6 +124,7 @@
 #define BOARD_RAMPS4DUE_EEF    1546  // RAMPS4DUE (Power outputs: Hotend0, Hotend1, Fan)
 #define BOARD_RAMPS4DUE_SF     1548  // RAMPS4DUE (Power outputs: Spindle, Controller Fan)
 #define BOARD_ALLIGATOR        1602  // Alligator Board R2
+#define BOARD_PICOPRINT        1700  // PicoPrint STM32F446
 #define BOARD_RAMPS_14_RE_ARM_EFB      1743   // Re-ARM with RAMPS 1.4 (Power outputs: Hotend, Fan, Bed)
 #define BOARD_RAMPS_14_RE_ARM_EEB      1744   // Re-ARM with RAMPS 1.4 (Power outputs: Hotend0, Hotend1, Bed)
 #define BOARD_RAMPS_14_RE_ARM_EFF      1745   // Re-ARM with RAMPS 1.4 (Power outputs: Hotend, Fan0, Fan1)
