@@ -6,8 +6,8 @@ The HAL is still in development and targets the PicoPrint control board featurin
 
 On the software side, you will need:
 
-* The STM32Generic Core with STM32F446 support (here)
-* The TMC26XX Stepper Library modified for STM32Generic (here)
+* The STM32Generic Core with STM32F446 support ([here](https://github.com/chrissbarr/STM32GENERIC/tree/F446VE))
+* The TMC26XX Stepper Library modified for STM32Generic ([here](https://github.com/Aus3D/TMC26XStepper/tree/PicoPrint))
 * Marlin with the F4 HAL (you are here)
 
 ### How do I program PicoPrint?
@@ -16,9 +16,9 @@ If the board you received already has a USB bootloader present, you can program 
 
 If the board did not come with a bootloader, you can either:
 
-Flash the bootloader over USB using the process described below
+* Flash the bootloader over USB using the process described below
 OR
-Program the board using an STM ST-Link programmer (or equivalent tool)
+* Program the board using an STM ST-Link programmer (or equivalent tool)
 
 
 ### Flashing USB bootloader to empty board
