@@ -110,10 +110,10 @@ extern uint16_t HAL_adc_result;
 // --------------------------------------------------------------------------
 
 // Disable interrupts
-#define cli() noInterrupts()
+#define cli() do {  DISABLE_TEMPERATURE_INTERRUPT(); DISABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
 
 // Enable interrupts
-#define sei() interrupts()
+#define sei() do {  ENABLE_TEMPERATURE_INTERRUPT(); ENABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
 
 // Memory related
 #define __bss_end __bss_end__

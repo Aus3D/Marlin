@@ -96,7 +96,7 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
       timerConfig[0].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
       timerConfig[0].IRQ_Id = TIM5_IRQn;
       timerConfig[0].callback = (uint32_t)TC5_Handler;
-      NVIC_SetPriority(timerConfig[0].IRQ_Id, 1);
+      HAL_NVIC_SetPriority(timerConfig[0].IRQ_Id, 1, 0);
       pinMode(STEPPER_ENABLE_PIN,OUTPUT);
       digitalWrite(STEPPER_ENABLE_PIN,LOW);
       break;
@@ -109,7 +109,7 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
       timerConfig[1].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
       timerConfig[1].IRQ_Id = TIM7_IRQn;
       timerConfig[1].callback = (uint32_t)TC7_Handler;
-      NVIC_SetPriority(timerConfig[1].IRQ_Id, 2);
+      HAL_NVIC_SetPriority(timerConfig[1].IRQ_Id, 2, 0);
       break;
     }
     timers_initialised[timer_num] = true;
@@ -138,11 +138,11 @@ void HAL_timer_set_count (uint8_t timer_num, uint32_t count) {
 }
 
 void HAL_timer_enable_interrupt (uint8_t timer_num) {
-  NVIC_EnableIRQ(timerConfig[timer_num].IRQ_Id);
+  HAL_NVIC_EnableIRQ(timerConfig[timer_num].IRQ_Id);
 }
 
 void HAL_timer_disable_interrupt (uint8_t timer_num) {
-  NVIC_DisableIRQ(timerConfig[timer_num].IRQ_Id);
+  HAL_NVIC_DisableIRQ(timerConfig[timer_num].IRQ_Id);
 }
 
 HAL_TIMER_TYPE HAL_timer_get_count (uint8_t timer_num) {
