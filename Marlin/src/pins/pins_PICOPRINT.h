@@ -60,15 +60,15 @@
 #define X_MAX_PIN          -1
 #define Y_MIN_PIN          _STM32_PIN(PORTE, 9)
 #define Y_MAX_PIN          -1
-#define Z_MIN_PIN          _STM32_PIN(PORTA, 4) //_STM32_PIN(PORTE, 8)
+#define Z_MIN_PIN          _STM32_PIN(PORTE, 8)
 #define Z_MAX_PIN          -1
 
 //
 // Z Probe (when not Z_MIN_PIN)
 //
-//#ifndef Z_MIN_PROBE_PIN
-//  #define Z_MIN_PROBE_PIN  _STM32_PIN(PORTA, 4)
-//#endif
+#ifndef Z_MIN_PROBE_PIN
+  #define Z_MIN_PROBE_PIN  _STM32_PIN(PORTA, 4)
+#endif
 
 //
 // Steppers
