@@ -94,7 +94,7 @@ void GcodeSuite::M190() {
 
   #if ENABLED(PRINTER_EVENT_LEDS)
     const float start_temp = thermalManager.degBed();
-    uint8_t old_red = 255;
+    uint8_t old_red = 127;
   #endif
 
   do {
@@ -122,7 +122,7 @@ void GcodeSuite::M190() {
     }
 
     idle();
-    refresh_cmd_timeout(); // to prevent stepper_inactive_time from running out
+    reset_stepper_timeout(); // Keep steppers powered
 
     const float temp = thermalManager.degBed();
 
@@ -132,7 +132,12 @@ void GcodeSuite::M190() {
         const uint8_t red = map(constrain(temp, start_temp, target_temp), start_temp, target_temp, 0, 255);
         if (red != old_red) {
           old_red = red;
-          set_led_color(red, 0, 255);
+          leds.set_color(
+            MakeLEDColor(red, 0, 255, 0, pixels.getBrightness())
+            #if ENABLED(NEOPIXEL_IS_SEQUENTIAL)
+              , true
+            #endif
+          );
         }
       }
     #endif

@@ -22,10 +22,10 @@
 
 #ifdef TARGET_LPC1768
 
+#include "LPC1768_PWM.h"
 #include <lpc17xx_pinsel.h>
-#include "HAL.h"
-#include "../../core/macros.h"
-#include "../../core/types.h"
+
+#include "../../inc/MarlinConfig.h"
 
 // Interrupts
 void cli(void) { __disable_irq(); } // Disable
@@ -70,73 +70,66 @@ extern "C" void delay(const int msec) {
 }
 
 // IO functions
-// As defined by Arduino INPUT(0x0), OUPUT(0x1), INPUT_PULLUP(0x2)
-void pinMode(uint8_t pin, uint8_t mode) {
-  if (!WITHIN(pin, 0, NUM_DIGITAL_PINS - 1) || pin_map[pin].port == 0xFF)
-    return;
+// As defined by Arduino INPUT(0x0), OUTPUT(0x1), INPUT_PULLUP(0x2)
+void pinMode(const pin_t pin, const uint8_t mode) {
+  if (!VALID_PIN(pin)) return;
 
-  PINSEL_CFG_Type config = { pin_map[pin].port,
-                             pin_map[pin].pin,
+  PINSEL_CFG_Type config = { LPC1768_PIN_PORT(pin),
+                             LPC1768_PIN_PIN(pin),
                              PINSEL_FUNC_0,
                              PINSEL_PINMODE_TRISTATE,
                              PINSEL_PINMODE_NORMAL };
-  switch(mode) {
-  case INPUT:
-    LPC_GPIO(pin_map[pin].port)->FIODIR &= ~LPC_PIN(pin_map[pin].pin);
-    PINSEL_ConfigPin(&config);
-    break;
-  case OUTPUT:
-    LPC_GPIO(pin_map[pin].port)->FIODIR |=  LPC_PIN(pin_map[pin].pin);
-    PINSEL_ConfigPin(&config);
-    break;
-  case INPUT_PULLUP:
-    LPC_GPIO(pin_map[pin].port)->FIODIR &= ~LPC_PIN(pin_map[pin].pin);
-    config.Pinmode = PINSEL_PINMODE_PULLUP;
-    PINSEL_ConfigPin(&config);
-    break;
-  default:
-    break;
+  switch (mode) {
+    case INPUT:
+      LPC_GPIO(LPC1768_PIN_PORT(pin))->FIODIR &= ~LPC_PIN(LPC1768_PIN_PIN(pin));
+      break;
+    case OUTPUT:
+      LPC_GPIO(LPC1768_PIN_PORT(pin))->FIODIR |=  LPC_PIN(LPC1768_PIN_PIN(pin));
+      break;
+    case INPUT_PULLUP:
+      LPC_GPIO(LPC1768_PIN_PORT(pin))->FIODIR &= ~LPC_PIN(LPC1768_PIN_PIN(pin));
+      config.Pinmode = PINSEL_PINMODE_PULLUP;
+      break;
+    case INPUT_PULLDOWN:
+      LPC_GPIO(LPC1768_PIN_PORT(pin))->FIODIR &= ~LPC_PIN(LPC1768_PIN_PIN(pin));
+      config.Pinmode = PINSEL_PINMODE_PULLDOWN;
+      break;
+    default: return;
   }
+  PINSEL_ConfigPin(&config);
 }
 
-void digitalWrite(uint8_t pin, uint8_t pin_status) {
-  if (!WITHIN(pin, 0, NUM_DIGITAL_PINS - 1) || pin_map[pin].port == 0xFF)
-    return;
+void digitalWrite(pin_t pin, uint8_t pin_status) {
+  if (!VALID_PIN(pin)) return;
 
   if (pin_status)
-    LPC_GPIO(pin_map[pin].port)->FIOSET = LPC_PIN(pin_map[pin].pin);
+    LPC_GPIO(LPC1768_PIN_PORT(pin))->FIOSET = LPC_PIN(LPC1768_PIN_PIN(pin));
   else
-    LPC_GPIO(pin_map[pin].port)->FIOCLR = LPC_PIN(pin_map[pin].pin);
+    LPC_GPIO(LPC1768_PIN_PORT(pin))->FIOCLR = LPC_PIN(LPC1768_PIN_PIN(pin));
 
   pinMode(pin, OUTPUT);  // Set pin mode on every write (Arduino version does this)
 
-    /**
-     * Must be done AFTER the output state is set. Doing this before will cause a
-     * 2uS glitch if writing a "1".
-     *
-     * When the Port Direction bit is written to a "1" the output is immediately set
-     * to the value of the FIOPIN bit which is "0" because of power up defaults.
-     */
+  /**
+   * Must be done AFTER the output state is set. Doing this before will cause a
+   * 2uS glitch if writing a "1".
+   *
+   * When the Port Direction bit is written to a "1" the output is immediately set
+   * to the value of the FIOPIN bit which is "0" because of power up defaults.
+   */
 }
 
-bool digitalRead(uint8_t pin) {
-  if (!WITHIN(pin, 0, NUM_DIGITAL_PINS - 1) || pin_map[pin].port == 0xFF) {
-    return false;
-  }
-  return LPC_GPIO(pin_map[pin].port)->FIOPIN & LPC_PIN(pin_map[pin].pin) ? 1 : 0;
+bool digitalRead(pin_t pin) {
+  if (!VALID_PIN(pin)) return false;
+
+  return LPC_GPIO(LPC1768_PIN_PORT(pin))->FIOPIN & LPC_PIN(LPC1768_PIN_PIN(pin)) ? 1 : 0;
 }
 
-void analogWrite(uint8_t pin, int pwm_value) {  // 1 - 254: pwm_value, 0: LOW, 255: HIGH
+void analogWrite(pin_t pin, int pwm_value) {  // 1 - 254: pwm_value, 0: LOW, 255: HIGH
+  if (!VALID_PIN(pin)) return;
 
-  extern bool LPC1768_PWM_attach_pin(uint8_t, uint32_t, uint32_t, uint8_t);
-  extern bool LPC1768_PWM_write(uint8_t, uint32_t);
-  extern bool LPC1768_PWM_detach_pin(uint8_t);
   #define MR0_MARGIN 200       // if channel value too close to MR0 the system locks up
 
   static bool out_of_PWM_slots = false;
-
-  if (!WITHIN(pin, 0, NUM_DIGITAL_PINS - 1) || pin_map[pin].port == 0xFF)
-    return;
 
   uint value = MAX(MIN(pwm_value, 255), 0);
   if (value == 0 || value == 255) {  // treat as digital pin
@@ -144,10 +137,10 @@ void analogWrite(uint8_t pin, int pwm_value) {  // 1 - 254: pwm_value, 0: LOW, 2
     digitalWrite(pin, value);
   }
   else {
-    if (LPC1768_PWM_attach_pin(pin, 1, (LPC_PWM1->MR0 - MR0_MARGIN),  0xff))   // locks up if get too close to MR0 value
-      LPC1768_PWM_write(pin, map(value, 1, 254, 1, (LPC_PWM1->MR0 - MR0_MARGIN)));  // map 1-254 onto PWM range
+    if (LPC1768_PWM_attach_pin(pin, 1, LPC_PWM1->MR0, 0xFF))
+      LPC1768_PWM_write(pin, map(value, 0, 255, 1, LPC_PWM1->MR0));  // map 1-254 onto PWM range
     else {                                                                 // out of PWM channels
-      if (!out_of_PWM_slots) usb_serial.printf(".\nWARNING - OUT OF PWM CHANNELS\n.\n");  //only warn once
+      if (!out_of_PWM_slots) SERIAL_ECHOPGM(".\nWARNING - OUT OF PWM CHANNELS\n.\n");  //only warn once
       out_of_PWM_slots = true;
       digitalWrite(pin, value);  // treat as a digital pin if out of channels
     }
@@ -156,7 +149,7 @@ void analogWrite(uint8_t pin, int pwm_value) {  // 1 - 254: pwm_value, 0: LOW, 2
 
 extern bool HAL_adc_finished();
 
-uint16_t analogRead(uint8_t adc_pin) {
+uint16_t analogRead(pin_t adc_pin) {
   HAL_adc_start_conversion(adc_pin);
   while (!HAL_adc_finished());  // Wait for conversion to finish
   return HAL_adc_get_result();
@@ -172,9 +165,9 @@ void eeprom_write_byte(unsigned char *pos, unsigned char value) {
 
 unsigned char eeprom_read_byte(uint8_t * pos) { return '\0'; }
 
-void eeprom_read_block (void *__dst, const void *__src, size_t __n) { }
+void eeprom_read_block(void *__dst, const void *__src, size_t __n) { }
 
-void eeprom_update_block (const void *__src, void *__dst, size_t __n) { }
+void eeprom_update_block(const void *__src, void *__dst, size_t __n) { }
 
 char *dtostrf (double __val, signed char __width, unsigned char __prec, char *__s) {
   char format_string[20];

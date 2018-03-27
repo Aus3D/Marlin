@@ -30,7 +30,14 @@
 // Includes
 // --------------------------------------------------------------------------
 
-#include "Arduino.h"
+// _BV is re-defined in Arduino.h
+#undef _BV
+
+#include <Arduino.h>
+
+// Redefine sq macro defined by teensy3/wiring.h
+#undef sq
+#define sq(x) ((x)*(x))
 
 #include "fastio_Teensy.h"
 #include "watchdog_Teensy.h"
@@ -50,19 +57,23 @@
 #define IS_TEENSY35 defined(__MK64FX512__)
 #define IS_TEENSY36 defined(__MK66FX1M0__)
 
+#define NUM_SERIAL 1
+
 #if SERIAL_PORT == -1
-  #define MYSERIAL SerialUSB
+  #define MYSERIAL0 SerialUSB
 #elif SERIAL_PORT == 0
-  #define MYSERIAL Serial
+  #define MYSERIAL0 Serial
 #elif SERIAL_PORT == 1
-  #define MYSERIAL Serial1
+  #define MYSERIAL0 Serial1
 #elif SERIAL_PORT == 2
-  #define MYSERIAL Serial2
+  #define MYSERIAL0 Serial2
 #elif SERIAL_PORT == 3
-  #define MYSERIAL Serial3
+  #define MYSERIAL0 Serial3
 #endif
 
 #define HAL_SERVO_LIB libServo
+
+typedef int8_t pin_t;
 
 #ifndef analogInputToDigitalPin
   #define analogInputToDigitalPin(p) ((p < 12u) ? (p) + 54u : -1)
@@ -71,8 +82,8 @@
 #define CRITICAL_SECTION_START  unsigned char _sreg = SREG; cli();
 #define CRITICAL_SECTION_END    SREG = _sreg;
 
-// On AVR this is in math.h?
-#define square(x) ((x)*(x))
+#undef sq
+#define sq(x) ((x)*(x))
 
 #ifndef strncpy_P
   #define strncpy_P(dest, src, num) strncpy((dest), (src), (num))
@@ -138,6 +149,10 @@ uint16_t HAL_adc_get_result(void);
   void HAL_enable_AdcFreerun(void);
   //void HAL_disable_AdcFreerun(uint8_t chan);
 */
+
+#define GET_PIN_MAP_PIN(index) index
+#define GET_PIN_MAP_INDEX(pin) pin
+#define PARSED_PIN_INDEX(code, dval) parser.intval(code, dval)
 
 // --------------------------------------------------------------------------
 //

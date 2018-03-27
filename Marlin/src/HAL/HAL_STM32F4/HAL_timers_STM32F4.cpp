@@ -133,7 +133,7 @@ extern "C" void TIM7_IRQHandler()
     ((void(*)(void))timerConfig[1].callback)();
 }
 
-void HAL_timer_set_count (uint8_t timer_num, uint32_t count) {
+void HAL_timer_set_compare(uint8_t timer_num, uint32_t count) {
   __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, count);
 }
 
@@ -145,7 +145,7 @@ void HAL_timer_disable_interrupt (uint8_t timer_num) {
   HAL_NVIC_DisableIRQ(timerConfig[timer_num].IRQ_Id);
 }
 
-HAL_TIMER_TYPE HAL_timer_get_count (uint8_t timer_num) {
+hal_timer_t HAL_timer_get_compare(uint8_t timer_num) {
   return __HAL_TIM_GetAutoreload(&timerConfig[timer_num].timerdef);
 }
 
@@ -157,6 +157,14 @@ void HAL_timer_isr_prologue (uint8_t timer_num) {
   if (__HAL_TIM_GET_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE) == SET) {
     __HAL_TIM_CLEAR_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE);
   }
+}
+
+bool HAL_timer_interrupt_enabled(const uint8_t timer_num) {
+  switch (timer_num) {
+    case STEP_TIMER_NUM: return HAL_NVIC_GetActive(timerConfig[timer_num].IRQ_Id);
+    case TEMP_TIMER_NUM: return HAL_NVIC_GetActive(timerConfig[timer_num].IRQ_Id);
+  }
+  return false;
 }
 
 #endif // __STM32F1__

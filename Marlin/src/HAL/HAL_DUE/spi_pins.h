@@ -47,12 +47,13 @@
   #define MOSI_PIN          75
 #else
   // defaults
-  #define SOFTWARE_SPI
+  #define DUE_SOFTWARE_SPI
   #define SCK_PIN           52
   #define MISO_PIN          50
   #define MOSI_PIN          51
 #endif
 
-#define SS_PIN            SDSS // A.28, A.29, B.21, C.26, C.29
+/* A.28, A.29, B.21, C.26, C.29 */
+#define SS_PIN            SDSS
 
 #endif /* SPI_PINS_H_ */

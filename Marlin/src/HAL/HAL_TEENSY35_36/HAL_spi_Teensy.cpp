@@ -11,7 +11,7 @@ static SPISettings spiConfig;
 // Standard SPI functions
 /** Initialise SPI bus */
 void spiBegin(void) {
-  #ifndef SS_PIN
+  #if !PIN_EXISTS(SS)
     #error SS_PIN not defined!
   #endif
   SET_OUTPUT(SS_PIN);
@@ -21,7 +21,7 @@ void spiBegin(void) {
   SET_OUTPUT(MOSI_PIN);
 
   //#if DISABLED(SOFTWARE_SPI)
-  #if false
+  #if 0
     // set SS high - may be chip select for another SPI device
     #if SET_SPI_SS_HIGH
       WRITE(SS_PIN, HIGH);
@@ -56,7 +56,7 @@ uint8_t spiRec(void) {
   uint8_t returnByte = SPI.transfer(0xFF);
   SPI.endTransaction();
   return returnByte;
-//  SPDR = 0XFF;
+//  SPDR = 0xFF;
 //  while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
 //  return SPDR;
 }
@@ -67,11 +67,11 @@ void spiRead(uint8_t* buf, uint16_t nbyte) {
   SPI.transfer(buf, nbyte);
   SPI.endTransaction();
 //if (nbyte-- == 0) return;
-//  SPDR = 0XFF;
+//  SPDR = 0xFF;
 //for (uint16_t i = 0; i < nbyte; i++) {
 //  while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
 //  buf[i] = SPDR;
-//  SPDR = 0XFF;
+//  SPDR = 0xFF;
 //}
 //while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
 //buf[nbyte] = SPDR;
@@ -91,14 +91,21 @@ void spiSendBlock(uint8_t token, const uint8_t* buf) {
   SPI.beginTransaction(spiConfig);
   SPDR = token;
   for (uint16_t i = 0; i < 512; i += 2) {
-    while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
+    while (!TEST(SPSR, SPIF)) { /* nada */ };
     SPDR = buf[i];
-    while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
+    while (!TEST(SPSR, SPIF)) { /* nada */ };
     SPDR = buf[i + 1];
   }
-  while (!TEST(SPSR, SPIF)) { /* Intentionally left empty */ }
+  while (!TEST(SPSR, SPIF)) { /* nada */ };
   SPI.endTransaction();
 }
 
 
-#endif
+/** Begin SPI transaction, set clock, bit order, data mode */
+void spiBeginTransaction(uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode) {
+  spiConfig = SPISettings(spiClock, bitOrder, dataMode);
+
+  SPI.beginTransaction(spiConfig);
+}
+
+#endif // __MK64FX512__ || __MK66FX1M0__

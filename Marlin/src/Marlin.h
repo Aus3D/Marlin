@@ -22,15 +22,15 @@
 #ifndef __MARLIN_H__
 #define __MARLIN_H__
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "inc/MarlinConfig.h"
 
 #ifdef DEBUG_GCODE_PARSER
   #include "gcode/parser.h"
 #endif
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 void stop();
 
@@ -159,6 +159,7 @@ void manage_inactivity(bool ignore_stepper_queue = false);
 #define _AXIS(AXIS) AXIS ##_AXIS
 
 void enable_all_steppers();
+void disable_e_stepper(const uint8_t e);
 void disable_e_steppers();
 void disable_all_steppers();
 
@@ -178,6 +179,10 @@ extern volatile bool wait_for_heatup;
   extern volatile bool wait_for_user;
 #endif
 
+#if HAS_AUTO_REPORTING || ENABLED(HOST_KEEPALIVE_FEATURE)
+  extern bool suspend_auto_report;
+#endif
+
 #if ENABLED(AUTO_BED_LEVELING_UBL)
   typedef struct { double A, B, D; } linear_fit;
   linear_fit* lsf_linear_fit(double x[], double y[], double z[], const int);
@@ -186,19 +191,9 @@ extern volatile bool wait_for_heatup;
 // Inactivity shutdown timer
 extern millis_t max_inactive_time, stepper_inactive_time;
 
-#if HAS_SERVOS
-  #include "HAL/servo.h"
-  extern HAL_SERVO_LIB servo[NUM_SERVOS];
-  #define MOVE_SERVO(I, P) servo[I].move(P)
-  #if HAS_Z_SERVO_ENDSTOP
-    #define DEPLOY_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[0])
-    #define STOW_Z_SERVO() MOVE_SERVO(Z_ENDSTOP_SERVO_NR, z_servo_angle[1])
-  #endif
-#endif
-
 #if FAN_COUNT > 0
   extern int16_t fanSpeeds[FAN_COUNT];
-  #if ENABLED(EXTRA_FAN_SPEEDS)
+  #if ENABLED(EXTRA_FAN_SPEED)
     extern int16_t old_fanSpeeds[FAN_COUNT],
                    new_fanSpeeds[FAN_COUNT];
   #endif
@@ -208,15 +203,28 @@ extern millis_t max_inactive_time, stepper_inactive_time;
   #endif
 #endif
 
-#if ENABLED(ADVANCED_PAUSE_FEATURE)
-  extern AdvancedPauseMenuResponse advanced_pause_menu_response;
+#if ENABLED(USE_CONTROLLER_FAN)
+  extern uint8_t controllerFanSpeed;
 #endif
 
 #if ENABLED(PID_EXTRUSION_SCALING)
   extern int lpq_len;
 #endif
 
-bool pin_is_protected(const int8_t pin);
+#if HAS_POWER_SWITCH
+  extern bool powersupply_on;
+  #define PSU_PIN_ON()  do{ OUT_WRITE(PS_ON_PIN, PS_ON_AWAKE); powersupply_on = true; }while(0)
+  #define PSU_PIN_OFF() do{ OUT_WRITE(PS_ON_PIN, PS_ON_ASLEEP); powersupply_on = false; }while(0)
+  #if ENABLED(AUTO_POWER_CONTROL)
+    #define PSU_ON()  powerManager.power_on()
+    #define PSU_OFF() powerManager.power_off()
+  #else
+    #define PSU_ON()  PSU_PIN_ON()
+    #define PSU_OFF() PSU_PIN_OFF()
+  #endif
+#endif
+
+bool pin_is_protected(const pin_t pin);
 
 #if HAS_SUICIDE
   inline void suicide() { OUT_WRITE(SUICIDE_PIN, LOW); }

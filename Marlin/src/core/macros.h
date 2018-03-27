@@ -24,11 +24,20 @@
 #define MACROS_H
 
 #define NUM_AXIS 4
+#define ABCE 4
 #define XYZE 4
 #define ABC  3
 #define XYZ  3
 
-#define FORCE_INLINE __attribute__((always_inline)) inline
+#define _XMIN_ 100
+#define _YMIN_ 200
+#define _ZMIN_ 300
+#define _XMAX_ 101
+#define _YMAX_ 201
+#define _ZMAX_ 301
+
+#define _FORCE_INLINE_ __attribute__((__always_inline__)) __inline__
+#define  FORCE_INLINE  __attribute__((always_inline)) inline
 #define _UNUSED      __attribute__((unused))
 #define _O0          __attribute__((optimize("O0")))
 #define _Os          __attribute__((optimize("Os")))
@@ -36,10 +45,10 @@
 #define _O2          __attribute__((optimize("O2")))
 #define _O3          __attribute__((optimize("O3")))
 
-
 // Clock speed factors
-#define CYCLES_PER_MICROSECOND (F_CPU / 1000000L) // 16 or 20
-#define INT0_PRESCALER 8
+#if !defined(CYCLES_PER_MICROSECOND) && !defined(__STM32F1__)
+  #define CYCLES_PER_MICROSECOND (F_CPU / 1000000L) // 16 or 20 on AVR
+#endif
 
 // Highly granular delays for step pulses, etc.
 #define DELAY_0_NOP NOOP
@@ -89,10 +98,16 @@
 #define STRINGIFY(M) STRINGIFY_(M)
 
 // Macros for bit masks
-#define TEST(n,b) (((n)&_BV(b))!=0)
+#undef _BV
+#define _BV(b) (1<<(b))
+#define TEST(n,b) !!((n)&_BV(b))
 #define SBI(n,b) (n |= _BV(b))
 #define CBI(n,b) (n &= ~_BV(b))
-#define SEB(n,b,value) (n) ^= ((-value)^(n)) & (_BV(b))
+
+#define _BV32(b) (1UL << (b))
+#define TEST32(n,b) !!((n)&_BV32(b))
+#define SBI32(n,b) (n |= _BV32(b))
+#define CBI32(n,b) (n &= ~_BV32(b))
 
 // Macros for maths shortcuts
 #ifndef M_PI
@@ -111,6 +126,7 @@
 // Macros to contrain values
 #define NOLESS(v,n) do{ if (v < n) v = n; }while(0)
 #define NOMORE(v,n) do{ if (v > n) v = n; }while(0)
+#define LIMIT(v,n1,n2) do{ if (v < n1) v = n1; else if (v > n2) v = n2; }while(0)
 
 // Macros to support option testing
 #define _CAT(a, ...) a ## __VA_ARGS__

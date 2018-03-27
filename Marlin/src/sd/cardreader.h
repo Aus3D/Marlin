@@ -20,14 +20,18 @@
  *
  */
 
-#ifndef CARDREADER_H
-#define CARDREADER_H
+#ifndef _CARDREADER_H_
+#define _CARDREADER_H_
+
+#include "../inc/MarlinConfig.h"
+
+#if ENABLED(SDSUPPORT)
+
+#define SD_RESORT ENABLED(SDCARD_SORT_ALPHA) && ENABLED(SDSORT_DYNAMIC_RAM)
 
 #define MAX_DIR_DEPTH 10          // Maximum folder depth
 
 #include "SdFile.h"
-
-#include "../inc/MarlinConfig.h"
 
 class CardReader {
 public:
@@ -35,23 +39,42 @@ public:
 
   void initsd();
   void write_command(char *buf);
-  //files auto[0-9].g on the sd card are performed in a row
-  //this is to delay autostart and hence the initialisaiton of the sd card to some seconds after the normal init, so the device is available quick after a reset
+  // Files auto[0-9].g on the sd card are performed in sequence.
+  // This is to delay autostart and hence the initialisation of
+  // the sd card to some seconds after the normal init, so the
+  // device is available soon after a reset.
 
   void checkautostart(bool x);
-  void openFile(char* name, bool read, bool push_current=false);
+  void openFile(char* name, const bool read, const bool subcall=false);
   void openLogFile(char* name);
-  void removeFile(char* name);
+  void removeFile(const char * const name);
   void closefile(bool store_location=false);
   void release();
   void openAndPrintFile(const char *name);
   void startFileprint();
-  void stopSDPrint();
-  void getStatus();
+  void stopSDPrint(
+    #if SD_RESORT
+      const bool re_sort=false
+    #endif
+  );
+  void getStatus(
+    #if NUM_SERIAL > 1
+      const int8_t port = -1
+    #endif
+  );
   void printingHasFinished();
+  void printFilename(
+    #if NUM_SERIAL > 1
+      const int8_t port = -1
+    #endif
+  );
 
   #if ENABLED(LONG_FILENAME_HOST_SUPPORT)
-    void printLongPath(char *path);
+    void printLongPath(char *path
+      #if NUM_SERIAL > 1
+        , const int8_t port = -1
+      #endif
+    );
   #endif
 
   void getfilename(uint16_t nr, const char* const match=NULL);
@@ -59,9 +82,13 @@ public:
 
   void getAbsFilename(char *t);
 
-  void ls();
+  void ls(
+    #if NUM_SERIAL > 1
+      const int8_t port = -1
+    #endif
+  );
   void chdir(const char *relpath);
-  void updir();
+  int8_t updir();
   void setroot();
 
   uint16_t get_num_Files();
@@ -83,6 +110,24 @@ public:
   FORCE_INLINE void setIndex(long index) { sdpos = index; file.seekSet(index); }
   FORCE_INLINE uint8_t percentDone() { return (isFileOpen() && filesize) ? sdpos / ((filesize + 99) / 100) : 0; }
   FORCE_INLINE char* getWorkDirName() { workDir.getFilename(filename); return filename; }
+
+  Sd2Card& getSd2Card() { return card; }
+
+  #if ENABLED(AUTO_REPORT_SD_STATUS)
+    void auto_report_sd_status(void);
+    FORCE_INLINE void set_auto_report_interval(uint8_t v
+      #if NUM_SERIAL > 1
+        , int8_t port
+      #endif
+    ) {
+      #if NUM_SERIAL > 1
+        serialport = port;
+      #endif
+      NOMORE(v, 60);
+      auto_report_sd_interval = v;
+      next_sd_report_ms = millis() + 1000UL * v;
+    }
+  #endif
 
 public:
   bool saving, logging, sdprinting, cardOK, filenameIsDir;
@@ -151,8 +196,7 @@ private:
   uint8_t file_subcall_ctr;
   uint32_t filespos[SD_PROCEDURE_DEPTH];
   char proc_filenames[SD_PROCEDURE_DEPTH][MAXPATHNAMELENGTH];
-  uint32_t filesize;
-  uint32_t sdpos;
+  uint32_t filesize, sdpos;
 
   millis_t next_autostart_ms;
   bool autostart_stilltocheck; //the sd start is delayed, because otherwise the serial cannot answer fast enought to make contact with the hostsoftware.
@@ -160,10 +204,22 @@ private:
   LsAction lsAction; //stored for recursion.
   uint16_t nrFiles; //counter for the files in the current directory and recycled as position counter for getting the nrFiles'th name in the directory.
   char* diveDirName;
-  void lsDive(const char *prepend, SdFile parent, const char * const match=NULL);
+  void lsDive(const char *prepend, SdFile parent, const char * const match=NULL
+    #if NUM_SERIAL > 1
+      , const int8_t port = -1
+    #endif
+  );
 
   #if ENABLED(SDCARD_SORT_ALPHA)
     void flush_presort();
+  #endif
+
+  #if ENABLED(AUTO_REPORT_SD_STATUS)
+    static uint8_t auto_report_sd_interval;
+    static millis_t next_sd_report_ms;
+    #if NUM_SERIAL > 1
+      static int8_t serialport;
+    #endif
   #endif
 };
 
@@ -174,9 +230,13 @@ private:
     #define IS_SD_INSERTED (READ(SD_DETECT_PIN) == LOW)
   #endif
 #else
-  //No card detect line? Assume the card is inserted.
+  // No card detect line? Assume the card is inserted.
   #define IS_SD_INSERTED true
 #endif
+
+extern CardReader card;
+
+#endif // SDSUPPORT
 
 #if ENABLED(SDSUPPORT)
   #define IS_SD_PRINTING (card.sdprinting)
@@ -186,6 +246,4 @@ private:
   #define IS_SD_FILE_OPEN (false)
 #endif
 
-extern CardReader card;
-
-#endif // CARDREADER_H
+#endif // _CARDREADER_H_

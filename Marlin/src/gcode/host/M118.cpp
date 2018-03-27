@@ -25,11 +25,11 @@
 /**
  * M118: Display a message in the host console.
  *
- *  A  Append '// ' for an action command, as in OctoPrint
- *  E  Have the host 'echo:' the text
+ *  A1  Append '// ' for an action command, as in OctoPrint
+ *  E1  Have the host 'echo:' the text
  */
 void GcodeSuite::M118() {
-  if (parser.boolval('E')) SERIAL_ECHO_START();
-  if (parser.boolval('A')) SERIAL_ECHOPGM("// ");
+  if (parser.seenval('E') && parser.value_bool()) SERIAL_ECHO_START();
+  if (parser.seenval('A') && parser.value_bool()) SERIAL_ECHOPGM("// ");
   SERIAL_ECHOLN(parser.string_arg);
 }

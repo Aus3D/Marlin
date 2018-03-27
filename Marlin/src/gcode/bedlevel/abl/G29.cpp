@@ -34,6 +34,7 @@
 #include "../../../module/planner.h"
 #include "../../../module/stepper.h"
 #include "../../../module/probe.h"
+#include "../../queue.h"
 
 #if ENABLED(LCD_BED_LEVELING) && ENABLED(PROBE_MANUALLY)
   #include "../../../lcd/ultralcd.h"
@@ -131,32 +132,40 @@
  */
 void GcodeSuite::G29() {
 
+  #if ENABLED(DEBUG_LEVELING_FEATURE) || ENABLED(PROBE_MANUALLY)
+    const bool seenQ = parser.seen('Q');
+  #else
+    constexpr bool seenQ = false;
+  #endif
+
   // G29 Q is also available if debugging
   #if ENABLED(DEBUG_LEVELING_FEATURE)
-    const bool query = parser.seen('Q');
     const uint8_t old_debug_flags = marlin_debug_flags;
-    if (query) marlin_debug_flags |= DEBUG_LEVELING;
+    if (seenQ) marlin_debug_flags |= DEBUG_LEVELING;
     if (DEBUGGING(LEVELING)) {
       DEBUG_POS(">>> G29", current_position);
       log_machine_info();
     }
     marlin_debug_flags = old_debug_flags;
     #if DISABLED(PROBE_MANUALLY)
-      if (query) return;
+      if (seenQ) return;
     #endif
   #endif
 
   #if ENABLED(PROBE_MANUALLY)
-    const bool seenA = parser.seen('A'), seenQ = parser.seen('Q'), no_action = seenA || seenQ;
+    const bool seenA = parser.seen('A');
+  #else
+    constexpr bool seenA = false;
   #endif
 
-  #if ENABLED(DEBUG_LEVELING_FEATURE) && DISABLED(PROBE_MANUALLY)
-    const bool faux = parser.boolval('C');
-  #elif ENABLED(PROBE_MANUALLY)
-    const bool faux = no_action;
-  #else
-    bool constexpr faux = false;
-  #endif
+  const bool  no_action = seenA || seenQ,
+              faux =
+                #if ENABLED(DEBUG_LEVELING_FEATURE) && DISABLED(PROBE_MANUALLY)
+                  parser.boolval('C')
+                #else
+                  no_action
+                #endif
+              ;
 
   // Don't allow auto-leveling without homing first
   if (axis_unhomed_error()) return;
@@ -226,9 +235,9 @@ void GcodeSuite::G29() {
 
     // Probe at 3 arbitrary points
     ABL_VAR vector_3 points[3] = {
-      vector_3(ABL_PROBE_PT_1_X, ABL_PROBE_PT_1_Y, 0),
-      vector_3(ABL_PROBE_PT_2_X, ABL_PROBE_PT_2_Y, 0),
-      vector_3(ABL_PROBE_PT_3_X, ABL_PROBE_PT_3_Y, 0)
+      vector_3(PROBE_PT_1_X, PROBE_PT_1_Y, 0),
+      vector_3(PROBE_PT_2_X, PROBE_PT_2_Y, 0),
+      vector_3(PROBE_PT_3_X, PROBE_PT_3_Y, 0)
     };
 
   #endif // AUTO_BED_LEVELING_3POINT
@@ -251,54 +260,56 @@ void GcodeSuite::G29() {
 
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
-      if (parser.seen('W')) {
+      const bool seen_w = parser.seen('W');
+      if (seen_w) {
         if (!leveling_is_valid()) {
           SERIAL_ERROR_START();
           SERIAL_ERRORLNPGM("No bilinear grid");
           return;
         }
 
-        const float z = parser.floatval('Z', RAW_CURRENT_POSITION(Z));
-        if (!WITHIN(z, -10, 10)) {
+        const float rz = parser.seenval('Z') ? RAW_Z_POSITION(parser.value_linear_units()) : current_position[Z_AXIS];
+        if (!WITHIN(rz, -10, 10)) {
           SERIAL_ERROR_START();
           SERIAL_ERRORLNPGM("Bad Z value");
           return;
         }
 
-        const float x = parser.floatval('X', NAN),
-                    y = parser.floatval('Y', NAN);
+        const float rx = RAW_X_POSITION(parser.linearval('X', NAN)),
+                    ry = RAW_Y_POSITION(parser.linearval('Y', NAN));
         int8_t i = parser.byteval('I', -1),
                j = parser.byteval('J', -1);
 
-        if (!isnan(x) && !isnan(y)) {
-          // Get nearest i / j from x / y
-          i = (x - LOGICAL_X_POSITION(bilinear_start[X_AXIS]) + 0.5 * xGridSpacing) / xGridSpacing;
-          j = (y - LOGICAL_Y_POSITION(bilinear_start[Y_AXIS]) + 0.5 * yGridSpacing) / yGridSpacing;
+        if (!isnan(rx) && !isnan(ry)) {
+          // Get nearest i / j from rx / ry
+          i = (rx - bilinear_start[X_AXIS] + 0.5 * xGridSpacing) / xGridSpacing;
+          j = (ry - bilinear_start[Y_AXIS] + 0.5 * yGridSpacing) / yGridSpacing;
           i = constrain(i, 0, GRID_MAX_POINTS_X - 1);
           j = constrain(j, 0, GRID_MAX_POINTS_Y - 1);
         }
         if (WITHIN(i, 0, GRID_MAX_POINTS_X - 1) && WITHIN(j, 0, GRID_MAX_POINTS_Y)) {
           set_bed_leveling_enabled(false);
-          z_values[i][j] = z;
+          z_values[i][j] = rz;
           #if ENABLED(ABL_BILINEAR_SUBDIVISION)
             bed_level_virt_interpolate();
           #endif
           set_bed_leveling_enabled(abl_should_enable);
+          if (abl_should_enable) report_current_position();
         }
         return;
       } // parser.seen('W')
 
-    #endif
+    #else
 
-    #if HAS_LEVELING
-
-      // Jettison bed leveling data
-      if (parser.seen('J')) {
-        reset_bed_level();
-        return;
-      }
+      constexpr bool seen_w = false;
 
     #endif
+
+    // Jettison bed leveling data
+    if (!seen_w && parser.seen('J')) {
+      reset_bed_level();
+      return;
+    }
 
     verbose_level = parser.intval('V');
     if (!WITHIN(verbose_level, 0, 4)) {
@@ -322,8 +333,12 @@ void GcodeSuite::G29() {
       abl_grid_points_y = parser.intval('Y', GRID_MAX_POINTS_Y);
       if (parser.seenval('P')) abl_grid_points_x = abl_grid_points_y = parser.value_int();
 
-      if (abl_grid_points_x < 2 || abl_grid_points_y < 2) {
-        SERIAL_PROTOCOLLNPGM("?Number of probe points is implausible (2 minimum).");
+      if (!WITHIN(abl_grid_points_x, 2, GRID_MAX_POINTS_X)) {
+        SERIAL_PROTOCOLLNPGM("?Probe points (X) is implausible (2-" STRINGIFY(GRID_MAX_POINTS_X) ").");
+        return;
+      }
+      if (!WITHIN(abl_grid_points_y, 2, GRID_MAX_POINTS_Y)) {
+        SERIAL_PROTOCOLLNPGM("?Probe points (Y) is implausible (2-" STRINGIFY(GRID_MAX_POINTS_Y) ").");
         return;
       }
 
@@ -340,37 +355,14 @@ void GcodeSuite::G29() {
 
       xy_probe_feedrate_mm_s = MMM_TO_MMS(parser.linearval('S', XY_PROBE_SPEED));
 
-      left_probe_bed_position = (int)parser.linearval('L', LOGICAL_X_POSITION(LEFT_PROBE_BED_POSITION));
-      right_probe_bed_position = (int)parser.linearval('R', LOGICAL_X_POSITION(RIGHT_PROBE_BED_POSITION));
-      front_probe_bed_position = (int)parser.linearval('F', LOGICAL_Y_POSITION(FRONT_PROBE_BED_POSITION));
-      back_probe_bed_position = (int)parser.linearval('B', LOGICAL_Y_POSITION(BACK_PROBE_BED_POSITION));
+      left_probe_bed_position  = parser.seenval('L') ? (int)RAW_X_POSITION(parser.value_linear_units()) : LEFT_PROBE_BED_POSITION;
+      right_probe_bed_position = parser.seenval('R') ? (int)RAW_X_POSITION(parser.value_linear_units()) : RIGHT_PROBE_BED_POSITION;
+      front_probe_bed_position = parser.seenval('F') ? (int)RAW_Y_POSITION(parser.value_linear_units()) : FRONT_PROBE_BED_POSITION;
+      back_probe_bed_position  = parser.seenval('B') ? (int)RAW_Y_POSITION(parser.value_linear_units()) : BACK_PROBE_BED_POSITION;
 
-      const bool left_out_l = left_probe_bed_position < LOGICAL_X_POSITION(MIN_PROBE_X),
-                 left_out = left_out_l || left_probe_bed_position > right_probe_bed_position - (MIN_PROBE_EDGE),
-                 right_out_r = right_probe_bed_position > LOGICAL_X_POSITION(MAX_PROBE_X),
-                 right_out = right_out_r || right_probe_bed_position < left_probe_bed_position + MIN_PROBE_EDGE,
-                 front_out_f = front_probe_bed_position < LOGICAL_Y_POSITION(MIN_PROBE_Y),
-                 front_out = front_out_f || front_probe_bed_position > back_probe_bed_position - (MIN_PROBE_EDGE),
-                 back_out_b = back_probe_bed_position > LOGICAL_Y_POSITION(MAX_PROBE_Y),
-                 back_out = back_out_b || back_probe_bed_position < front_probe_bed_position + MIN_PROBE_EDGE;
-
-      if (left_out || right_out || front_out || back_out) {
-        if (left_out) {
-          out_of_range_error(PSTR("(L)eft"));
-          left_probe_bed_position = left_out_l ? LOGICAL_X_POSITION(MIN_PROBE_X) : right_probe_bed_position - (MIN_PROBE_EDGE);
-        }
-        if (right_out) {
-          out_of_range_error(PSTR("(R)ight"));
-          right_probe_bed_position = right_out_r ? LOGICAL_Y_POSITION(MAX_PROBE_X) : left_probe_bed_position + MIN_PROBE_EDGE;
-        }
-        if (front_out) {
-          out_of_range_error(PSTR("(F)ront"));
-          front_probe_bed_position = front_out_f ? LOGICAL_Y_POSITION(MIN_PROBE_Y) : back_probe_bed_position - (MIN_PROBE_EDGE);
-        }
-        if (back_out) {
-          out_of_range_error(PSTR("(B)ack"));
-          back_probe_bed_position = back_out_b ? LOGICAL_Y_POSITION(MAX_PROBE_Y) : front_probe_bed_position + MIN_PROBE_EDGE;
-        }
+      if ( !position_is_reachable_by_probe(left_probe_bed_position, front_probe_bed_position)
+        || !position_is_reachable_by_probe(right_probe_bed_position, back_probe_bed_position)) {
+        SERIAL_PROTOCOLLNPGM("? (L,R,F,B) out of bounds.");
         return;
       }
 
@@ -381,28 +373,21 @@ void GcodeSuite::G29() {
     #endif // ABL_GRID
 
     if (verbose_level > 0) {
-      SERIAL_PROTOCOLLNPGM("G29 Auto Bed Leveling");
-      if (dryrun) SERIAL_PROTOCOLLNPGM("Running in DRY-RUN mode");
+      SERIAL_PROTOCOLPGM("G29 Auto Bed Leveling");
+      if (dryrun) SERIAL_PROTOCOLPGM(" (DRYRUN)");
+      SERIAL_EOL();
     }
 
     stepper.synchronize();
 
-    // Disable auto bed leveling during G29
-    planner.leveling_active = false;
-
-    if (!dryrun) {
-      // Re-orient the current position without leveling
-      // based on where the steppers are positioned.
-      set_current_from_steppers_for_axis(ALL_AXES);
-
-      // Sync the planner to where the steppers stopped
-      SYNC_PLAN_POSITION_KINEMATIC();
-    }
+    // Disable auto bed leveling during G29.
+    // Be formal so G29 can be done successively without G28.
+    if (!no_action) set_bed_leveling_enabled(false);
 
     #if HAS_BED_PROBE
       // Deploy the probe. Probe will raise if needed.
       if (DEPLOY_PROBE()) {
-        planner.leveling_active = abl_should_enable;
+        set_bed_leveling_enabled(abl_should_enable);
         return;
       }
     #endif
@@ -416,21 +401,17 @@ void GcodeSuite::G29() {
       #endif
       if ( xGridSpacing != bilinear_grid_spacing[X_AXIS]
         || yGridSpacing != bilinear_grid_spacing[Y_AXIS]
-        || left_probe_bed_position != LOGICAL_X_POSITION(bilinear_start[X_AXIS])
-        || front_probe_bed_position != LOGICAL_Y_POSITION(bilinear_start[Y_AXIS])
+        || left_probe_bed_position != bilinear_start[X_AXIS]
+        || front_probe_bed_position != bilinear_start[Y_AXIS]
       ) {
-        if (dryrun) {
-          // Before reset bed level, re-enable to correct the position
-          planner.leveling_active = abl_should_enable;
-        }
         // Reset grid to 0.0 or "not probed". (Also disables ABL)
         reset_bed_level();
 
         // Initialize a grid with the given dimensions
         bilinear_grid_spacing[X_AXIS] = xGridSpacing;
         bilinear_grid_spacing[Y_AXIS] = yGridSpacing;
-        bilinear_start[X_AXIS] = RAW_X_POSITION(left_probe_bed_position);
-        bilinear_start[Y_AXIS] = RAW_Y_POSITION(front_probe_bed_position);
+        bilinear_start[X_AXIS] = left_probe_bed_position;
+        bilinear_start[Y_AXIS] = front_probe_bed_position;
 
         // Can't re-enable (on error) until the new grid is written
         abl_should_enable = false;
@@ -466,7 +447,7 @@ void GcodeSuite::G29() {
       #if HAS_SOFTWARE_ENDSTOPS
         soft_endstops_enabled = enable_soft_endstops;
       #endif
-      planner.leveling_active = abl_should_enable;
+      set_bed_leveling_enabled(abl_should_enable);
       g29_in_progress = false;
       #if ENABLED(LCD_BED_LEVELING)
         lcd_wait_for_move = false;
@@ -555,7 +536,7 @@ void GcodeSuite::G29() {
         #endif
 
         // Keep looping till a reachable point is found
-        if (position_is_reachable_xy(xProbe, yProbe)) break;
+        if (position_is_reachable(xProbe, yProbe)) break;
         ++abl_probe_index;
       }
 
@@ -584,9 +565,10 @@ void GcodeSuite::G29() {
     #elif ENABLED(AUTO_BED_LEVELING_3POINT)
 
       // Probe at 3 arbitrary points
-      if (abl_probe_index < 3) {
-        xProbe = LOGICAL_X_POSITION(points[abl_probe_index].x);
-        yProbe = LOGICAL_Y_POSITION(points[abl_probe_index].y);
+      if (abl_probe_index < abl2) {
+        xProbe = points[abl_probe_index].x;
+        yProbe = points[abl_probe_index].y;
+        _manual_goto_xy(xProbe, yProbe);
         #if HAS_SOFTWARE_ENDSTOPS
           // Disable software endstops to allow manual adjustment
           // If G29 is not completed, they will not be re-enabled
@@ -622,13 +604,15 @@ void GcodeSuite::G29() {
 
   #else // !PROBE_MANUALLY
   {
-    const bool stow_probe_after_each = parser.boolval('E');
+    const ProbePtRaise raise_after = parser.boolval('E') ? PROBE_PT_STOW : PROBE_PT_RAISE;
 
     measured_z = 0;
 
     #if ABL_GRID
 
       bool zig = PR_OUTER_END & 1;  // Always end at RIGHT and BACK_PROBE_BED_POSITION
+
+      measured_z = 0;
 
       // Outer loop is Y with PROBE_Y_FIRST disabled
       for (uint8_t PR_OUTER_VAR = 0; PR_OUTER_VAR < PR_OUTER_END && !isnan(measured_z); PR_OUTER_VAR++) {
@@ -663,13 +647,13 @@ void GcodeSuite::G29() {
 
           #if IS_KINEMATIC
             // Avoid probing outside the round or hexagonal area
-            if (!position_is_reachable_by_probe_xy(xProbe, yProbe)) continue;
+            if (!position_is_reachable_by_probe(xProbe, yProbe)) continue;
           #endif
 
-          measured_z = faux ? 0.001 * random(-100, 101) : probe_pt(xProbe, yProbe, stow_probe_after_each, verbose_level);
+          measured_z = faux ? 0.001 * random(-100, 101) : probe_pt(xProbe, yProbe, raise_after, verbose_level);
 
           if (isnan(measured_z)) {
-            planner.leveling_active = abl_should_enable;
+            set_bed_leveling_enabled(abl_should_enable);
             break;
           }
 
@@ -701,11 +685,11 @@ void GcodeSuite::G29() {
 
       for (uint8_t i = 0; i < 3; ++i) {
         // Retain the last probe position
-        xProbe = LOGICAL_X_POSITION(points[i].x);
-        yProbe = LOGICAL_Y_POSITION(points[i].y);
-        measured_z = faux ? 0.001 * random(-100, 101) : probe_pt(xProbe, yProbe, stow_probe_after_each, verbose_level);
+        xProbe = points[i].x;
+        yProbe = points[i].y;
+        measured_z = faux ? 0.001 * random(-100, 101) : probe_pt(xProbe, yProbe, raise_after, verbose_level);
         if (isnan(measured_z)) {
-          planner.leveling_active = abl_should_enable;
+          set_bed_leveling_enabled(abl_should_enable);
           break;
         }
         points[i].z = measured_z;
@@ -726,9 +710,9 @@ void GcodeSuite::G29() {
 
     #endif // AUTO_BED_LEVELING_3POINT
 
-    // Raise to _Z_CLEARANCE_DEPLOY_PROBE. Stow the probe.
+    // Stow the probe. No raise for FIX_MOUNTED_PROBE.
     if (STOW_PROBE()) {
-      planner.leveling_active = abl_should_enable;
+      set_bed_leveling_enabled(abl_should_enable);
       measured_z = NAN;
     }
   }
@@ -960,12 +944,16 @@ void GcodeSuite::G29() {
     if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("<<< G29");
   #endif
 
-  report_current_position();
-
   KEEPALIVE_STATE(IN_HANDLER);
 
   if (planner.leveling_active)
     SYNC_PLAN_POSITION_KINEMATIC();
+
+  #if HAS_BED_PROBE && Z_AFTER_PROBING
+    move_z_after_probing();
+  #endif
+
+  report_current_position();
 }
 
 #endif // OLDSCHOOL_ABL

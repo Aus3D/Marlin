@@ -29,6 +29,8 @@
 
 #include "../../inc/MarlinConfig.h"
 
+#define NUMBER_PINS_TOTAL NUM_DIGITAL_PINS
+
 #if AVR_AT90USB1286_FAMILY
   // Working with Teensyduino extension so need to re-define some things
   #include "pinsDebug_Teensyduino.h"
@@ -54,18 +56,24 @@
 #endif
 
 #define VALID_PIN(pin) (pin >= 0 && pin < NUM_DIGITAL_PINS ? 1 : 0)
-#define DIGITAL_PIN_TO_ANALOG_PIN(p) int(p - analogInputToDigitalPin(0))
-#define IS_ANALOG(P) ((P) >= analogInputToDigitalPin(0) && ((P) <= analogInputToDigitalPin(15) || (P) <= analogInputToDigitalPin(7)))
+#if AVR_ATmega1284_FAMILY
+  #define DIGITAL_PIN_TO_ANALOG_PIN(P) int(analogInputToDigitalPin(0) - (P))
+  #define IS_ANALOG(P) ((P) >= analogInputToDigitalPin(7) && (P) <= analogInputToDigitalPin(0))
+#else
+  #define DIGITAL_PIN_TO_ANALOG_PIN(P) int((P) - analogInputToDigitalPin(0))
+  #define IS_ANALOG(P) ((P) >= analogInputToDigitalPin(0) && ((P) <= analogInputToDigitalPin(15) || (P) <= analogInputToDigitalPin(7)))
+#endif
 #define GET_ARRAY_PIN(p) pgm_read_byte(&pin_array[p].pin)
+#define MULTI_NAME_PAD 26 // space needed to be pretty if not first name assigned to a pin
 
 void PRINT_ARRAY_NAME(uint8_t x) {
   char *name_mem_pointer = (char*)pgm_read_ptr(&pin_array[x].name);
   for (uint8_t y = 0; y < MAX_NAME_LENGTH; y++) {
     char temp_char = pgm_read_byte(name_mem_pointer + y);
     if (temp_char != 0)
-      MYSERIAL.write(temp_char);
+      SERIAL_CHAR(temp_char);
     else {
-      for (uint8_t i = 0; i < MAX_NAME_LENGTH - y; i++) MYSERIAL.write(' ');
+      for (uint8_t i = 0; i < MAX_NAME_LENGTH - y; i++) SERIAL_CHAR(' ');
       break;
     }
   }
@@ -397,6 +405,6 @@ static void pwm_details(uint8_t pin) {
 
 #endif
 
-#define GET_PIN_INFO(pin) do{}while(0)
+#define PRINT_PIN(p) do {sprintf_P(buffer, PSTR("%3d "), p); SERIAL_ECHO(buffer);} while (0)
 
 #endif // _PINSDEBUG_AVR_8_BIT_

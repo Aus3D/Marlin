@@ -24,11 +24,13 @@ extern "C" {
 #include <chanfs/ff.h>
 }
 
+#include "../../inc/MarlinConfig.h"
+#include "HAL.h"
 #include "fastio.h"
 #include "HAL_timers.h"
 #include <stdio.h>
 #include <stdarg.h>
-#include "arduino.h"
+#include <Arduino.h>
 #include "serial.h"
 #include "LPC1768_PWM.h"
 
@@ -68,32 +70,53 @@ extern "C" void SystemPostInit() {
   }
 }
 
+// detect 17x[4-8] (100MHz) or 17x9 (120MHz)
+static bool isLPC1769() {
+    #define IAP_LOCATION 0x1FFF1FF1
+    uint32_t command[1];
+    uint32_t result[5];
+    typedef void (*IAP)(uint32_t*, uint32_t*);
+    IAP iap = (IAP) IAP_LOCATION;
+
+    command[0] = 54;
+    iap(command, result);
+
+    return ((result[1] & 0x00100000) != 0);
+}
+
 extern uint32_t MSC_SD_Init(uint8_t pdrv);
-extern HalSerial usb_serial;
+
 int main(void) {
 
   (void)MSC_SD_Init(0);
+
   USB_Init();                               // USB Initialization
   USB_Connect(TRUE);                        // USB Connect
 
-  volatile uint32_t usb_timeout = millis() + 2000;
-  while (!USB_Configuration && millis() < usb_timeout) {
+  const uint32_t usb_timeout = millis() + 2000;
+  while (!USB_Configuration && PENDING(millis(), usb_timeout)) {
     delay(50);
-    TOGGLE(13);     // Flash fast while USB initialisation completes
+
+    #if PIN_EXISTS(LED)
+      TOGGLE(LED_PIN);     // Flash fast while USB initialisation completes
+    #endif
   }
 
-  debug_frmwrk_init();
-  usb_serial.printf("\n\nRe-ARM (LPC1768 @ %dMhz) UART0 Initialised\n", SystemCoreClock / 1000000);
+  #if NUM_SERIAL > 0
+    MYSERIAL0.begin(BAUDRATE);
+    #if NUM_SERIAL > 1
+      MYSERIAL1.begin(BAUDRATE);
+    #endif
+    SERIAL_PRINTF("\n\n%s (%dMhz) UART0 Initialised\n", isLPC1769() ? "LPC1769" : "LPC1768", SystemCoreClock / 1000000);
+    SERIAL_FLUSHTX();
+  #endif
 
   HAL_timer_init();
 
-  extern void LPC1768_PWM_init();
   LPC1768_PWM_init();
 
   setup();
-  while (true) {
-    loop();
-  }
+  for (;;) loop();
 }
 
 #endif // TARGET_LPC1768

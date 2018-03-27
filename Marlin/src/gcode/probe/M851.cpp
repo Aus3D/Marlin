@@ -29,22 +29,19 @@
 #include "../../module/probe.h"
 
 void GcodeSuite::M851() {
-  SERIAL_ECHO_START();
-  SERIAL_ECHOPGM(MSG_ZPROBE_ZOFFSET " ");
-  if (parser.seen('Z')) {
+  if (parser.seenval('Z')) {
     const float value = parser.value_linear_units();
-    if (WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+    if (WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
       zprobe_zoffset = value;
-      refresh_zprobe_zoffset();
-      SERIAL_ECHO(zprobe_zoffset);
+    else {
+      SERIAL_ERROR_START();
+      SERIAL_ERRORLNPGM("?Z out of range (" STRINGIFY(Z_PROBE_OFFSET_RANGE_MIN) " to " STRINGIFY(Z_PROBE_OFFSET_RANGE_MAX) ")");
     }
-    else
-      SERIAL_ECHOPGM(MSG_Z_MIN " " STRINGIFY(Z_PROBE_OFFSET_RANGE_MIN) " " MSG_Z_MAX " " STRINGIFY(Z_PROBE_OFFSET_RANGE_MAX));
+    return;
   }
-  else
-    SERIAL_ECHOPAIR(": ", zprobe_zoffset);
-
-  SERIAL_EOL();
+  SERIAL_ECHO_START();
+  SERIAL_ECHOPGM(MSG_PROBE_Z_OFFSET);
+  SERIAL_ECHOLNPAIR(": ", zprobe_zoffset);
 }
 
 #endif // HAS_BED_PROBE

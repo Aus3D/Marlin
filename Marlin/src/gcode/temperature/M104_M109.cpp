@@ -70,8 +70,10 @@ void GcodeSuite::M104() {
       }
     #endif
 
-    if (parser.value_celsius() > thermalManager.degHotend(e))
-      lcd_status_printf_P(0, PSTR("E%i %s"), e + 1, MSG_HEATING);
+    #if ENABLED(ULTRA_LCD)
+      if (parser.value_celsius() > thermalManager.degHotend(e))
+        lcd_status_printf_P(0, PSTR("E%i %s"), e + 1, MSG_HEATING);
+    #endif
   }
 
   #if ENABLED(AUTOTEMP)
@@ -124,7 +126,10 @@ void GcodeSuite::M109() {
         print_job_timer.start();
     #endif
 
-    if (thermalManager.isHeatingHotend(target_extruder)) lcd_status_printf_P(0, PSTR("E%i %s"), target_extruder + 1, MSG_HEATING);
+    #if ENABLED(ULTRA_LCD)
+      if (thermalManager.isHeatingHotend(target_extruder))
+        lcd_status_printf_P(0, PSTR("E%i %s"), target_extruder + 1, MSG_HEATING);
+    #endif
   }
   else return;
 
@@ -180,7 +185,7 @@ void GcodeSuite::M109() {
     }
 
     idle();
-    refresh_cmd_timeout(); // to prevent stepper_inactive_time from running out
+    reset_stepper_timeout(); // Keep steppers powered
 
     const float temp = thermalManager.degHotend(target_extruder);
 
@@ -190,7 +195,12 @@ void GcodeSuite::M109() {
         const uint8_t blue = map(constrain(temp, start_temp, target_temp), start_temp, target_temp, 255, 0);
         if (blue != old_blue) {
           old_blue = blue;
-          set_led_color(255, 0, blue);
+          leds.set_color(
+            MakeLEDColor(255, 0, blue, 0, pixels.getBrightness())
+            #if ENABLED(NEOPIXEL_IS_SEQUENTIAL)
+              , true
+            #endif
+          );
         }
       }
     #endif
@@ -226,12 +236,7 @@ void GcodeSuite::M109() {
   if (wait_for_heatup) {
     LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
     #if ENABLED(PRINTER_EVENT_LEDS)
-      #if ENABLED(RGB_LED) || ENABLED(BLINKM) || ENABLED(PCA9632) || ENABLED(RGBW_LED)
-        set_led_color(LED_WHITE);
-      #endif
-      #if ENABLED(NEOPIXEL_LED)
-        set_neopixel_color(pixels.Color(NEO_WHITE));
-      #endif
+      leds.set_white();
     #endif
   }
 

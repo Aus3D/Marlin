@@ -37,8 +37,13 @@
 #include "../lcd/ultralcd.h"
 #include "../Marlin.h"
 
+#if ENABLED(SENSORLESS_HOMING)
+  #include "../feature/tmc_util.h"
+#endif
+
 // Initialized by settings.load()
-float delta_endstop_adj[ABC] = { 0 },
+float delta_height,
+      delta_endstop_adj[ABC] = { 0 },
       delta_radius,
       delta_diagonal_rod,
       delta_segments_per_second,
@@ -55,24 +60,26 @@ float delta_safe_distance_from_top();
  * Recalculate factors used for delta kinematics whenever
  * settings have been changed (e.g., by M665).
  */
-void recalc_delta_settings(const float radius, const float diagonal_rod, const float tower_angle_trim[ABC]) {
+void recalc_delta_settings() {
   const float trt[ABC] = DELTA_RADIUS_TRIM_TOWER,
               drt[ABC] = DELTA_DIAGONAL_ROD_TRIM_TOWER;
-  delta_tower[A_AXIS][X_AXIS] = cos(RADIANS(210 + tower_angle_trim[A_AXIS])) * (radius + trt[A_AXIS]); // front left tower
-  delta_tower[A_AXIS][Y_AXIS] = sin(RADIANS(210 + tower_angle_trim[A_AXIS])) * (radius + trt[A_AXIS]);
-  delta_tower[B_AXIS][X_AXIS] = cos(RADIANS(330 + tower_angle_trim[B_AXIS])) * (radius + trt[B_AXIS]); // front right tower
-  delta_tower[B_AXIS][Y_AXIS] = sin(RADIANS(330 + tower_angle_trim[B_AXIS])) * (radius + trt[B_AXIS]);
-  delta_tower[C_AXIS][X_AXIS] = cos(RADIANS( 90 + tower_angle_trim[C_AXIS])) * (radius + trt[C_AXIS]); // back middle tower
-  delta_tower[C_AXIS][Y_AXIS] = sin(RADIANS( 90 + tower_angle_trim[C_AXIS])) * (radius + trt[C_AXIS]);
-  delta_diagonal_rod_2_tower[A_AXIS] = sq(diagonal_rod + drt[A_AXIS]);
-  delta_diagonal_rod_2_tower[B_AXIS] = sq(diagonal_rod + drt[B_AXIS]);
-  delta_diagonal_rod_2_tower[C_AXIS] = sq(diagonal_rod + drt[C_AXIS]);
+  delta_tower[A_AXIS][X_AXIS] = cos(RADIANS(210 + delta_tower_angle_trim[A_AXIS])) * (delta_radius + trt[A_AXIS]); // front left tower
+  delta_tower[A_AXIS][Y_AXIS] = sin(RADIANS(210 + delta_tower_angle_trim[A_AXIS])) * (delta_radius + trt[A_AXIS]);
+  delta_tower[B_AXIS][X_AXIS] = cos(RADIANS(330 + delta_tower_angle_trim[B_AXIS])) * (delta_radius + trt[B_AXIS]); // front right tower
+  delta_tower[B_AXIS][Y_AXIS] = sin(RADIANS(330 + delta_tower_angle_trim[B_AXIS])) * (delta_radius + trt[B_AXIS]);
+  delta_tower[C_AXIS][X_AXIS] = cos(RADIANS( 90 + delta_tower_angle_trim[C_AXIS])) * (delta_radius + trt[C_AXIS]); // back middle tower
+  delta_tower[C_AXIS][Y_AXIS] = sin(RADIANS( 90 + delta_tower_angle_trim[C_AXIS])) * (delta_radius + trt[C_AXIS]);
+  delta_diagonal_rod_2_tower[A_AXIS] = sq(delta_diagonal_rod + drt[A_AXIS]);
+  delta_diagonal_rod_2_tower[B_AXIS] = sq(delta_diagonal_rod + drt[B_AXIS]);
+  delta_diagonal_rod_2_tower[C_AXIS] = sq(delta_diagonal_rod + drt[C_AXIS]);
+  update_software_endstops(Z_AXIS);
+  axis_homed[X_AXIS] = axis_homed[Y_AXIS] = axis_homed[Z_AXIS] = false;
 }
 
 /**
  * Delta Inverse Kinematics
  *
- * Calculate the tower positions for a given logical
+ * Calculate the tower positions for a given machine
  * position, storing the result in the delta[] array.
  *
  * This is an expensive calculation, requiring 3 square
@@ -108,18 +115,29 @@ void recalc_delta_settings(const float radius, const float diagonal_rod, const f
   }
 #endif
 
-#define DELTA_DEBUG() do { \
-    SERIAL_ECHOPAIR("cartesian X:", raw[X_AXIS]); \
-    SERIAL_ECHOPAIR(" Y:", raw[Y_AXIS]);          \
-    SERIAL_ECHOLNPAIR(" Z:", raw[Z_AXIS]);        \
+#define DELTA_DEBUG(VAR) do { \
+    SERIAL_ECHOPAIR("cartesian X:", VAR[X_AXIS]); \
+    SERIAL_ECHOPAIR(" Y:", VAR[Y_AXIS]);          \
+    SERIAL_ECHOLNPAIR(" Z:", VAR[Z_AXIS]);        \
     SERIAL_ECHOPAIR("delta A:", delta[A_AXIS]);   \
     SERIAL_ECHOPAIR(" B:", delta[B_AXIS]);        \
     SERIAL_ECHOLNPAIR(" C:", delta[C_AXIS]);      \
   }while(0)
 
-void inverse_kinematics(const float logical[XYZ]) {
-  DELTA_LOGICAL_IK();
-  // DELTA_DEBUG();
+void inverse_kinematics(const float raw[XYZ]) {
+  #if HOTENDS > 1
+    // Delta hotend offsets must be applied in Cartesian space with no "spoofing"
+    const float pos[XYZ] = {
+      raw[X_AXIS] - hotend_offset[X_AXIS][active_extruder],
+      raw[Y_AXIS] - hotend_offset[Y_AXIS][active_extruder],
+      raw[Z_AXIS]
+    };
+    DELTA_IK(pos);
+    //DELTA_DEBUG(pos);
+  #else
+    DELTA_IK(raw);
+    //DELTA_DEBUG(raw);
+  #endif
 }
 
 /**
@@ -127,16 +145,12 @@ void inverse_kinematics(const float logical[XYZ]) {
  * effector has the full range of XY motion.
  */
 float delta_safe_distance_from_top() {
-  float cartesian[XYZ] = {
-    LOGICAL_X_POSITION(0),
-    LOGICAL_Y_POSITION(0),
-    LOGICAL_Z_POSITION(0)
-  };
+  float cartesian[XYZ] = { 0, 0, 0 };
   inverse_kinematics(cartesian);
-  float distance = delta[A_AXIS];
-  cartesian[Y_AXIS] = LOGICAL_Y_POSITION(DELTA_PRINTABLE_RADIUS);
+  float centered_extent = delta[A_AXIS];
+  cartesian[Y_AXIS] = DELTA_PRINTABLE_RADIUS;
   inverse_kinematics(cartesian);
-  return FABS(distance - delta[A_AXIS]);
+  return FABS(centered_extent - delta[A_AXIS]);
 }
 
 /**
@@ -215,6 +229,14 @@ void forward_kinematics_DELTA(float z1, float z2, float z3) {
   cartes[Z_AXIS] =             z1 + ex[2] * Xnew + ey[2] * Ynew - ez[2] * Znew;
 }
 
+#if ENABLED(SENSORLESS_HOMING)
+  inline void delta_sensorless_homing(const bool on=true) {
+    sensorless_homing_per_axis(A_AXIS, on);
+    sensorless_homing_per_axis(B_AXIS, on);
+    sensorless_homing_per_axis(C_AXIS, on);
+  }
+#endif
+
 /**
  * A delta can only safely home all axes at the same time
  * This is like quick_home_xy() but for 3 towers.
@@ -227,19 +249,26 @@ bool home_delta() {
   ZERO(current_position);
   sync_plan_position();
 
+  // Disable stealthChop if used. Enable diag1 pin on driver.
+  #if ENABLED(SENSORLESS_HOMING)
+    delta_sensorless_homing();
+  #endif
+
   // Move all carriages together linearly until an endstop is hit.
-  current_position[X_AXIS] = current_position[Y_AXIS] = current_position[Z_AXIS] = (DELTA_HEIGHT + home_offset[Z_AXIS] + 10);
+  current_position[X_AXIS] = current_position[Y_AXIS] = current_position[Z_AXIS] = (delta_height + 10);
   feedrate_mm_s = homing_feedrate(X_AXIS);
   line_to_current_position();
   stepper.synchronize();
 
   // If an endstop was not hit, then damage can occur if homing is continued.
-  // This can occur if the delta height (DELTA_HEIGHT + home_offset[Z_AXIS]) is
-  // not set correctly.
+  // This can occur if the delta height not set correctly.
   if (!(Endstops::endstop_hit_bits & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
     LCD_MESSAGEPGM(MSG_ERR_HOMING_FAILED);
     SERIAL_ERROR_START();
     SERIAL_ERRORLNPGM(MSG_ERR_HOMING_FAILED);
+    #if ENABLED(SENSORLESS_HOMING)
+      delta_sensorless_homing(false);
+    #endif
     return false;
   }
 
@@ -250,6 +279,11 @@ bool home_delta() {
   HOMEAXIS(A);
   HOMEAXIS(B);
   HOMEAXIS(C);
+
+  // Re-enable stealthChop if used. Disable diag1 pin on driver.
+  #if ENABLED(SENSORLESS_HOMING)
+    delta_sensorless_homing(false);
+  #endif
 
   // Set all carriages to their home positions
   // Do this here all at once for Delta, because

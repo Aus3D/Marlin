@@ -43,7 +43,7 @@
  */
 #define FORCE_INLINE __attribute__((always_inline)) inline
 
-#define HAL_TIMER_TYPE uint32_t		//TODO: One is 16-bit, one 32-bit - does this need to be checked?
+typedef uint32_t hal_timer_t; 		//TODO: One is 16-bit, one 32-bit - does this need to be checked?
 #define HAL_TIMER_TYPE_MAX 0xFFFF	
 
 #define STEP_TIMER_NUM 0  // index of timer to use for stepper
@@ -57,11 +57,18 @@
 #define TEMP_TIMER_PRESCALE     1000 // prescaler for setting Temp timer, 80Khz
 #define TEMP_TIMER_FREQUENCY    1000 // temperature interrupt frequency
 
+#define STEP_TIMER_MIN_INTERVAL    8 // minimum time in µs between stepper interrupts
+
+#define PULSE_TIMER_NUM STEP_TIMER_NUM
+#define PULSE_TIMER_PRESCALE STEPPER_TIMER_PRESCALE
+
 #define ENABLE_STEPPER_DRIVER_INTERRUPT() HAL_timer_enable_interrupt (STEP_TIMER_NUM)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT() HAL_timer_disable_interrupt (STEP_TIMER_NUM)
-
 #define ENABLE_TEMPERATURE_INTERRUPT() HAL_timer_enable_interrupt (TEMP_TIMER_NUM)
 #define DISABLE_TEMPERATURE_INTERRUPT() HAL_timer_disable_interrupt (TEMP_TIMER_NUM)
+#define STEPPER_ISR_ENABLED() HAL_timer_interrupt_enabled(STEP_TIMER_NUM)
+
+#define HAL_timer_get_count(timer_num) HAL_timer_get_current_count(timer_num)
 
 #define HAL_ENABLE_ISRs() do { if (thermalManager.in_temp_isr)DISABLE_TEMPERATURE_INTERRUPT(); else ENABLE_TEMPERATURE_INTERRUPT(); ENABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
 // TODO change this
@@ -95,6 +102,7 @@ typedef struct {
 void HAL_timer_start (uint8_t timer_num, uint32_t frequency);
 void HAL_timer_enable_interrupt(uint8_t timer_num);
 void HAL_timer_disable_interrupt(uint8_t timer_num);
+bool HAL_timer_interrupt_enabled(const uint8_t timer_num);
 
 /**
  * NOTE: By default libmaple sets ARPE = 1, which means the Auto reload register is preloaded (will only update with an update event)
@@ -107,9 +115,14 @@ void HAL_timer_disable_interrupt(uint8_t timer_num);
  * Todo: Look at that possibility later.
  */
 
-void HAL_timer_set_count (uint8_t timer_num, uint32_t count);
-HAL_TIMER_TYPE HAL_timer_get_count (uint8_t timer_num);
+void HAL_timer_set_compare(uint8_t timer_num, uint32_t count);
+hal_timer_t HAL_timer_get_compare(uint8_t timer_num);
 uint32_t HAL_timer_get_current_count(uint8_t timer_num);
 void HAL_timer_isr_prologue (uint8_t timer_num);
+
+FORCE_INLINE static void HAL_timer_restrain(const uint8_t timer_num, const uint16_t interval_ticks) {
+  const hal_timer_t mincmp = HAL_timer_get_count(timer_num) + interval_ticks;
+  if (HAL_timer_get_compare(timer_num) < mincmp) HAL_timer_set_compare(timer_num, mincmp);
+}
 
 #endif // _HAL_TIMERS_STM32F4_H

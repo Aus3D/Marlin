@@ -20,8 +20,8 @@
  *
  */
 
-#if !defined(__STM32F1__)
-    #error "Oops!  Make sure you have an STM32F1 board selected from the 'Tools -> Boards' menu."
+#ifndef __STM32F1__
+  #error "Oops!  Make sure you have an STM32F1 board selected from the 'Tools -> Boards' menu."
 #endif
 
 /**
@@ -30,8 +30,6 @@
 
 #define DEFAULT_MACHINE_NAME "STM32F103RET6"
 #define BOARD_NAME "Marlin for STM32"
-
-#define LARGE_FLASH true
 
 // Ignore temp readings during develpment.
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
@@ -220,7 +218,9 @@
       #define DOGLCD_CS         29
       #define DOGLCD_A0         27
       #define LCD_BACKLIGHT_PIN 33
+
     #elif ENABLED(MINIPANEL)
+
       #define BEEPER_PIN        42
       // Pins for DOGM SPI LCD Support
       #define DOGLCD_A0         44

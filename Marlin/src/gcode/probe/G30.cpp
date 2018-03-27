@@ -42,7 +42,7 @@ void GcodeSuite::G30() {
   const float xpos = parser.linearval('X', current_position[X_AXIS] + X_PROBE_OFFSET_FROM_EXTRUDER),
               ypos = parser.linearval('Y', current_position[Y_AXIS] + Y_PROBE_OFFSET_FROM_EXTRUDER);
 
-  if (!position_is_reachable_by_probe_xy(xpos, ypos)) return;
+  if (!position_is_reachable_by_probe(xpos, ypos)) return;
 
   // Disable leveling so the planner won't mess with us
   #if HAS_LEVELING
@@ -51,7 +51,8 @@ void GcodeSuite::G30() {
 
   setup_for_endstop_or_probe_move();
 
-  const float measured_z = probe_pt(xpos, ypos, parser.boolval('E'), 1);
+  const ProbePtRaise raise_after = parser.boolval('E') ? PROBE_PT_STOW : PROBE_PT_NONE;
+  const float measured_z = probe_pt(xpos, ypos, raise_after, 1);
 
   if (!isnan(measured_z)) {
     SERIAL_PROTOCOLPAIR("Bed X: ", FIXFLOAT(xpos));
@@ -60,6 +61,10 @@ void GcodeSuite::G30() {
   }
 
   clean_up_after_endstop_or_probe_move();
+
+  #if Z_AFTER_PROBING
+    if (raise_after == PROBE_PT_STOW) move_z_after_probing();
+  #endif
 
   report_current_position();
 }

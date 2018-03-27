@@ -40,21 +40,24 @@
 
 #define FORCE_INLINE __attribute__((always_inline)) inline
 
-#define HAL_TIMER_TYPE uint32_t
+typedef uint32_t hal_timer_t;
 #define HAL_TIMER_TYPE_MAX 0xFFFFFFFF
 
 #define STEP_TIMER_NUM 3  // index of timer to use for stepper
 #define TEMP_TIMER_NUM 4  // index of timer to use for temperature
+#define TONE_TIMER_NUM 6  // index of timer to use for beeper tones
 
 #define HAL_TIMER_RATE         ((F_CPU) / 2)    // frequency of timers peripherals
-#define STEPPER_TIMER_PRESCALE 1.0              // prescaler for setting stepper frequency
+#define STEPPER_TIMER_PRESCALE (CYCLES_PER_MICROSECOND / HAL_TICKS_PER_US)
 #define HAL_STEPPER_TIMER_RATE HAL_TIMER_RATE   // frequency of stepper timer (HAL_TIMER_RATE / STEPPER_TIMER_PRESCALE)
-#define HAL_TICKS_PER_US       ((HAL_STEPPER_TIMER_RATE) / 1000000) // stepper timer ticks per us
+#define HAL_TICKS_PER_US       ((HAL_STEPPER_TIMER_RATE) / 1000000) // stepper timer ticks per µs
 
 #define TEMP_TIMER_FREQUENCY   1000 // temperature interrupt frequency
+#define STEP_TIMER_MIN_INTERVAL   8 // minimum time in µs between stepper interrupts
 
 #define ENABLE_STEPPER_DRIVER_INTERRUPT() HAL_timer_enable_interrupt(STEP_TIMER_NUM)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT()  HAL_timer_disable_interrupt(STEP_TIMER_NUM)
+#define STEPPER_ISR_ENABLED() HAL_timer_interrupt_enabled(STEP_TIMER_NUM)
 
 #define ENABLE_TEMPERATURE_INTERRUPT()  HAL_timer_enable_interrupt(TEMP_TIMER_NUM)
 #define DISABLE_TEMPERATURE_INTERRUPT() HAL_timer_disable_interrupt(TEMP_TIMER_NUM)
@@ -63,6 +66,10 @@
 
 #define HAL_STEP_TIMER_ISR  void TC3_Handler()
 #define HAL_TEMP_TIMER_ISR  void TC4_Handler()
+#define HAL_TONE_TIMER_ISR  void TC6_Handler()
+
+#define PULSE_TIMER_NUM STEP_TIMER_NUM
+#define PULSE_TIMER_PRESCALE STEPPER_TIMER_PRESCALE
 
 // --------------------------------------------------------------------------
 // Types
@@ -87,28 +94,35 @@ extern const tTimerConfig TimerConfig[];
 
 void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency);
 
-static FORCE_INLINE void HAL_timer_set_count(const uint8_t timer_num, const uint32_t count) {
-  const tTimerConfig *pConfig = &TimerConfig[timer_num];
-  pConfig->pTimerRegs->TC_CHANNEL[pConfig->channel].TC_RC = count;
+FORCE_INLINE static void HAL_timer_set_compare(const uint8_t timer_num, const hal_timer_t compare) {
+  const tTimerConfig * const pConfig = &TimerConfig[timer_num];
+  pConfig->pTimerRegs->TC_CHANNEL[pConfig->channel].TC_RC = compare;
 }
 
-static FORCE_INLINE HAL_TIMER_TYPE HAL_timer_get_count(const uint8_t timer_num) {
-  const tTimerConfig *pConfig = &TimerConfig[timer_num];
+FORCE_INLINE static hal_timer_t HAL_timer_get_compare(const uint8_t timer_num) {
+  const tTimerConfig * const pConfig = &TimerConfig[timer_num];
   return pConfig->pTimerRegs->TC_CHANNEL[pConfig->channel].TC_RC;
 }
 
-static FORCE_INLINE uint32_t HAL_timer_get_current_count(const uint8_t timer_num) {
-  const tTimerConfig *pConfig = &TimerConfig[timer_num];
+FORCE_INLINE static hal_timer_t HAL_timer_get_count(const uint8_t timer_num) {
+  const tTimerConfig * const pConfig = &TimerConfig[timer_num];
   return pConfig->pTimerRegs->TC_CHANNEL[pConfig->channel].TC_CV;
+}
+
+// if counter too high then bump up compare
+FORCE_INLINE static void HAL_timer_restrain(const uint8_t timer_num, const uint16_t interval_ticks) {
+  const hal_timer_t mincmp = HAL_timer_get_count(timer_num) + interval_ticks;
+  if (HAL_timer_get_compare(timer_num) < mincmp) HAL_timer_set_compare(timer_num, mincmp);
 }
 
 void HAL_timer_enable_interrupt(const uint8_t timer_num);
 void HAL_timer_disable_interrupt(const uint8_t timer_num);
+bool HAL_timer_interrupt_enabled(const uint8_t timer_num);
 
 //void HAL_timer_isr_prologue(const uint8_t timer_num);
 
-static FORCE_INLINE void HAL_timer_isr_prologue(const uint8_t timer_num) {
-  const tTimerConfig *pConfig = &TimerConfig[timer_num];
+FORCE_INLINE static void HAL_timer_isr_prologue(const uint8_t timer_num) {
+  const tTimerConfig * const pConfig = &TimerConfig[timer_num];
   // Reading the status register clears the interrupt flag
   pConfig->pTimerRegs->TC_CHANNEL[pConfig->channel].TC_SR;
 }

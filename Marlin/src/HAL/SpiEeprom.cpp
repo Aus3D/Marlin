@@ -44,15 +44,14 @@ uint8_t eeprom_read_byte(uint8_t* pos) {
   eeprom_temp[0] = CMD_READ;
   eeprom_temp[1] = ((unsigned)pos>>8) & 0xFF; // addr High
   eeprom_temp[2] = (unsigned)pos& 0xFF;       // addr Low
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 3);
 
   v = spiRec(SPI_CHAN_EEPROM1);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
   return v;
 }
-
 
 void eeprom_read_block(void* dest, const void* eeprom_address, size_t n) {
   uint8_t eeprom_temp[3];
@@ -62,14 +61,14 @@ void eeprom_read_block(void* dest, const void* eeprom_address, size_t n) {
   eeprom_temp[0] = CMD_READ;
   eeprom_temp[1] = ((unsigned)eeprom_address>>8) & 0xFF; // addr High
   eeprom_temp[2] = (unsigned)eeprom_address& 0xFF;       // addr Low
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 3);
 
   uint8_t *p_dest = (uint8_t *)dest;
   while (n--)
     *p_dest++ = spiRec(SPI_CHAN_EEPROM1);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
 }
 
 void eeprom_write_byte(uint8_t* pos, uint8_t value) {
@@ -77,20 +76,20 @@ void eeprom_write_byte(uint8_t* pos, uint8_t value) {
 
   /*write enable*/
   eeprom_temp[0] = CMD_WREN;
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 1);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
   delay(1);
 
   /*write addr*/
   eeprom_temp[0] = CMD_WRITE;
   eeprom_temp[1] = ((unsigned)pos>>8) & 0xFF;  //addr High
   eeprom_temp[2] = (unsigned)pos & 0xFF;       //addr Low
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 3);
 
   spiSend(SPI_CHAN_EEPROM1, value);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
   delay(7);   // wait for page write to complete
 }
 
@@ -99,20 +98,20 @@ void eeprom_update_block(const void* src, void* eeprom_address, size_t n) {
 
   /*write enable*/
   eeprom_temp[0] = CMD_WREN;
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 1);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
   delay(1);
 
   /*write addr*/
   eeprom_temp[0] = CMD_WRITE;
   eeprom_temp[1] = ((unsigned)eeprom_address>>8) & 0xFF;  //addr High
   eeprom_temp[2] = (unsigned)eeprom_address & 0xFF;       //addr Low
-  digitalWrite(SPI_EEPROM1_CS, LOW);
+  WRITE(SPI_EEPROM1_CS, LOW);
   spiSend(SPI_CHAN_EEPROM1, eeprom_temp, 3);
 
   spiSend(SPI_CHAN_EEPROM1, (const uint8_t*)src, n);
-  digitalWrite(SPI_EEPROM1_CS, HIGH);
+  WRITE(SPI_EEPROM1_CS, HIGH);
   delay(7);   // wait for page write to complete
 }
 

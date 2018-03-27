@@ -21,13 +21,12 @@
  */
 
 /**
- * Description: HAL for Arduino Due and compatible (SAM3X8E)
- *
- * For ARDUINO_ARCH_SAM
+ * HAL_LPC1768/HAL.h
+ * Hardware Abstraction Layer for NXP LPC1768
  */
 
-#ifndef _HAL_LPC1768_H
-#define _HAL_LPC1768_H
+#ifndef _HAL_LPC1768_H_
+#define _HAL_LPC1768_H_
 
 // --------------------------------------------------------------------------
 // Includes
@@ -35,15 +34,17 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+
+#undef min
+#undef max
+
 #include <algorithm>
 
 void _printf (const  char *format, ...);
 void _putc(uint8_t c);
 uint8_t _getc();
 
-extern volatile uint32_t _millis;
-
-#define USBCON
+extern "C" volatile uint32_t _millis;
 
 //arduino: Print.h
 #define DEC 10
@@ -54,21 +55,66 @@ extern volatile uint32_t _millis;
 #define B01 1
 #define B10 2
 
-#include "arduino.h"
-#include "pinmapping.h"
+#include <Arduino.h>
+#include <pinmapping.h>
+
 #include "fastio.h"
 #include "watchdog.h"
 #include "serial.h"
 #include "HAL_timers.h"
+#include "HardwareSerial.h"
 
+#define ST7920_DELAY_1 DELAY_20_NOP;DELAY_20_NOP;DELAY_20_NOP
+#define ST7920_DELAY_2 DELAY_20_NOP;DELAY_20_NOP;DELAY_20_NOP;DELAY_10_NOP;DELAY_5_NOP
+#define ST7920_DELAY_3 DELAY_20_NOP;DELAY_20_NOP;DELAY_20_NOP;DELAY_10_NOP;DELAY_5_NOP
 
-#define ST7920_DELAY_1 DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP
-#define ST7920_DELAY_2 DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP
-#define ST7920_DELAY_3 DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP;DELAY_5_NOP
-
-//Serial override
 extern HalSerial usb_serial;
-#define MYSERIAL usb_serial
+
+#if !WITHIN(SERIAL_PORT, -1, 3)
+  #error "SERIAL_PORT must be from -1 to 3"
+#endif
+
+#if SERIAL_PORT == -1
+  #define MYSERIAL0 usb_serial
+#elif SERIAL_PORT == 0
+  extern HardwareSerial Serial;
+  #define MYSERIAL0 Serial
+#elif SERIAL_PORT == 1
+  extern HardwareSerial Serial1;
+  #define MYSERIAL0 Serial1
+#elif SERIAL_PORT == 2
+  extern HardwareSerial Serial2;
+  #define MYSERIAL0 Serial2
+#elif SERIAL_PORT == 3
+  #define MYSERIAL0 Serial3
+  extern HardwareSerial Serial3;
+#endif
+
+#ifdef SERIAL_PORT_2
+  #if !WITHIN(SERIAL_PORT_2, -1, 3)
+    #error "SERIAL_PORT_2 must be from -1 to 3"
+  #elif SERIAL_PORT_2 == SERIAL_PORT
+    #error "SERIAL_PORT_2 must be different than SERIAL_PORT"
+  #endif
+  #define NUM_SERIAL 2
+  #if SERIAL_PORT_2 == -1
+    #define MYSERIAL1 usb_serial
+  #elif SERIAL_PORT_2 == 0
+    extern HardwareSerial Serial;
+    #define MYSERIAL1 Serial
+  #elif SERIAL_PORT_2 == 1
+    extern HardwareSerial Serial1;
+    #define MYSERIAL1 Serial1
+  #elif SERIAL_PORT_2 == 2
+    extern HardwareSerial Serial2;
+    #define MYSERIAL1 Serial2
+  #elif SERIAL_PORT_2 == 3
+    extern HardwareSerial Serial3;
+    #define MYSERIAL1 Serial3
+  #endif
+#else
+  #define NUM_SERIAL 1
+#endif
 
 #define CRITICAL_SECTION_START  uint32_t primask = __get_PRIMASK(); __disable_irq();
 #define CRITICAL_SECTION_END    if (!primask) __enable_irq();
@@ -94,4 +140,4 @@ void HAL_adc_enable_channel(int pin);
 void HAL_adc_start_conversion(const uint8_t adc_pin);
 uint16_t HAL_adc_get_result(void);
 
-#endif // _HAL_LPC1768_H
+#endif // _HAL_LPC1768_H_

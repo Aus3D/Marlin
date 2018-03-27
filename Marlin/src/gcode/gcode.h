@@ -55,7 +55,7 @@
  * G19  - Select Plane YZ (Requires CNC_WORKSPACE_PLANES)
  * G20  - Set input units to inches (Requires INCH_MODE_SUPPORT)
  * G21  - Set input units to millimeters (Requires INCH_MODE_SUPPORT)
- * G26  - Mesh Validation Pattern (Requires UBL_G26_MESH_VALIDATION)
+ * G26  - Mesh Validation Pattern (Requires G26_MESH_VALIDATION)
  * G27  - Park Nozzle (Requires NOZZLE_PARK_FEATURE)
  * G28  - Home one or more axes
  * G29  - Start or continue the bed leveling probe procedure (Requires bed leveling)
@@ -64,7 +64,7 @@
  * G32  - Undock sled (Z_PROBE_SLED only)
  * G33  - Delta Auto-Calibration (Requires DELTA_AUTO_CALIBRATION)
  * G38  - Probe in any direction using the Z_MIN_PROBE (Requires G38_PROBE_TARGET)
- * G42  - Coordinated move to a mesh point (Requires HAS_MESH)
+ * G42  - Coordinated move to a mesh point (Requires MESH_BED_LEVELING, AUTO_BED_LEVELING_BLINEAR, or AUTO_BED_LEVELING_UBL)
  * G90  - Use Absolute Coordinates
  * G91  - Use Relative Coordinates
  * G92  - Set current position to coordinates given
@@ -86,6 +86,8 @@
  * M25  - Pause SD print. (Requires SDSUPPORT)
  * M26  - Set SD position in bytes: "M26 S12345". (Requires SDSUPPORT)
  * M27  - Report SD print status. (Requires SDSUPPORT)
+ *        OR, with 'S<seconds>' set the SD status auto-report interval. (Requires AUTO_REPORT_SD_STATUS)
+ *        OR, with 'C' get the current filename.
  * M28  - Start SD write: "M28 /path/file.gco". (Requires SDSUPPORT)
  * M29  - Stop SD write. (Requires SDSUPPORT)
  * M30  - Delete file from SD: "M30 /path/file.gco"
@@ -97,7 +99,7 @@
  * M34  - Set SD Card sorting options. (Requires SDCARD_SORT_ALPHA)
  * M42  - Change pin status via gcode: M42 P<pin> S<value>. LED pin assumed if P is omitted.
  * M43  - Display pin status, watch pins for changes, watch endstops & toggle LED, Z servo probe test, toggle pins
- * M48  - Measure Z Probe repeatability: M48 P<points> X<pos> Y<pos> V<level> E<engage> L<legs>. (Requires Z_MIN_PROBE_REPEATABILITY_TEST)
+ * M48  - Measure Z Probe repeatability: M48 P<points> X<pos> Y<pos> V<level> E<engage> L<legs> S<chizoid>. (Requires Z_MIN_PROBE_REPEATABILITY_TEST)
  * M75  - Start the print job timer.
  * M76  - Pause the print job timer.
  * M77  - Stop the print job timer.
@@ -130,6 +132,7 @@
  * M119 - Report endstops status.
  * M120 - Enable endstops detection.
  * M121 - Disable endstops detection.
+ * M122 - Debug stepper (Requires HAVE_TMC2130 or HAVE_TMC2208)
  * M125 - Save current position and move to filament change position. (Requires PARK_HEAD_ON_PAUSE)
  * M126 - Solenoid Air Valve Open. (Requires BARICUDA)
  * M127 - Solenoid Air Valve Closed. (Requires BARICUDA)
@@ -160,7 +163,7 @@
  * M209 - Turn Automatic Retract Detection on/off: S<0|1> (For slicers that don't support G10/11). (Requires FWRETRACT)
           Every normal extrude-only move will be classified as retract depending on the direction.
  * M211 - Enable, Disable, and/or Report software endstops: S<0|1> (Requires MIN_SOFTWARE_ENDSTOPS or MAX_SOFTWARE_ENDSTOPS)
- * M218 - Set a tool offset: "M218 T<index> X<offset> Y<offset>". (Requires 2 or more extruders)
+ * M218 - Set/get a tool offset: "M218 T<index> X<offset> Y<offset>". (Requires 2 or more extruders)
  * M220 - Set Feedrate Percentage: "M220 S<percent>" (i.e., "FR" on the LCD)
  * M221 - Set Flow Percentage: "M221 S<percent>"
  * M226 - Wait until a pin is in a given state: "M226 P<pin> S<state>"
@@ -169,6 +172,7 @@
  * M260 - i2c Send Data (Requires EXPERIMENTAL_I2CBUS)
  * M261 - i2c Request Data (Requires EXPERIMENTAL_I2CBUS)
  * M280 - Set servo position absolute: "M280 P<index> S<angle|µs>". (Requires servos)
+ * M290 - Babystepping (Requires BABYSTEPPING)
  * M300 - Play beep sound S<frequency Hz> P<duration ms>
  * M301 - Set PID parameters P I and D. (Requires PIDTEMP)
  * M302 - Allow cold extrudes, or set the minimum extrude S<temperature>. (Requires PREVENT_COLD_EXTRUSION)
@@ -180,8 +184,8 @@
  * M380 - Activate solenoid on active extruder. (Requires EXT_SOLENOID)
  * M381 - Disable all solenoids. (Requires EXT_SOLENOID)
  * M400 - Finish all moves.
- * M401 - Lower Z probe. (Requires a probe)
- * M402 - Raise Z probe. (Requires a probe)
+ * M401 - Deploy and activate Z probe. (Requires a probe)
+ * M402 - Deactivate and stow Z probe. (Requires a probe)
  * M404 - Display or set the Nominal Filament Width: "W<diameter>". (Requires FILAMENT_WIDTH_SENSOR)
  * M405 - Enable Filament Sensor flow control. "M405 D<delay_cm>". (Requires FILAMENT_WIDTH_SENSOR)
  * M406 - Disable Filament Sensor flow control. (Requires FILAMENT_WIDTH_SENSOR)
@@ -196,10 +200,14 @@
  * M503 - Print the current settings (in memory): "M503 S<verbose>". S0 specifies compact output.
  * M540 - Enable/disable SD card abort on endstop hit: "M540 S<state>". (Requires ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED)
  * M600 - Pause for filament change: "M600 X<pos> Y<pos> Z<raise> E<first_retract> L<later_retract>". (Requires ADVANCED_PAUSE_FEATURE)
+ * M603 - Configure filament change: "M603 T<tool> U<unload_length> L<load_length>". (Requires ADVANCED_PAUSE_FEATURE)
+ * M605 - Set Dual X-Carriage movement mode: "M605 S<mode> [X<x_offset>] [R<temp_offset>]". (Requires DUAL_X_CARRIAGE)
  * M665 - Set delta configurations: "M665 L<diagonal rod> R<delta radius> S<segments/s> A<rod A trim mm> B<rod B trim mm> C<rod C trim mm> I<tower A trim angle> J<tower B trim angle> K<tower C trim angle>" (Requires DELTA)
- * M666 - Set delta endstop adjustment. (Requires DELTA)
- * M605 - Set dual x-carriage movement mode: "M605 S<mode> [X<x_offset>] [R<temp_offset>]". (Requires DUAL_X_CARRIAGE)
+ * M666 - Set/get offsets for delta (Requires DELTA) or dual endstops (Requires [XYZ]_DUAL_ENDSTOPS).
+ * M701 - Load filament (requires FILAMENT_LOAD_UNLOAD_GCODES)
+ * M702 - Unload filament (requires FILAMENT_LOAD_UNLOAD_GCODES)
  * M851 - Set Z probe's Z offset in current units. (Negative = below the nozzle.)
+ * M852 - Set skew factors: "M852 [I<xy>] [J<xz>] [K<yz>]". (Requires SKEW_CORRECTION_GCODE, and SKEW_CORRECTION_FOR_Z for IJ)
  * M860 - Report the position of position encoder modules.
  * M861 - Report the status of position encoder modules.
  * M862 - Perform an axis continuity test for position encoder modules.
@@ -210,14 +218,14 @@
  * M867 - Enable/disable or toggle error correction for position encoder modules.
  * M868 - Report or set position encoder module error correction threshold.
  * M869 - Report position encoder module error.
- * M900 - Get and/or Set advance K factor and WH/D ratio. (Requires LIN_ADVANCE)
- * M906 - Set or get motor current in milliamps using axis codes X, Y, Z, E. Report values if no axis codes given. (Requires HAVE_TMC2130)
+ * M900 - Get or Set Linear Advance K-factor. (Requires LIN_ADVANCE)
+ * M906 - Set or get motor current in milliamps using axis codes X, Y, Z, E. Report values if no axis codes given. (Requires HAVE_TMC2130 or HAVE_TMC2208)
  * M907 - Set digital trimpot motor current using axis codes. (Requires a board with digital trimpots)
  * M908 - Control digital trimpot directly. (Requires DAC_STEPPER_CURRENT or DIGIPOTSS_PIN)
  * M909 - Print digipot/DAC current value. (Requires DAC_STEPPER_CURRENT)
  * M910 - Commit digipot/DAC value to external EEPROM via I2C. (Requires DAC_STEPPER_CURRENT)
- * M911 - Report stepper driver overtemperature pre-warn condition. (Requires HAVE_TMC2130)
- * M912 - Clear stepper driver overtemperature pre-warn condition flag. (Requires HAVE_TMC2130)
+ * M911 - Report stepper driver overtemperature pre-warn condition. (Requires HAVE_TMC2130 or HAVE_TMC2208)
+ * M912 - Clear stepper driver overtemperature pre-warn condition flag. (Requires HAVE_TMC2130 or HAVE_TMC2208)
  * M913 - Set HYBRID_THRESHOLD speed. (Requires HYBRID_THRESHOLD)
  * M914 - Set SENSORLESS_HOMING sensitivity. (Requires SENSORLESS_HOMING)
  *
@@ -261,18 +269,26 @@ public:
      * Workspace planes only apply to G2/G3 moves
      * (and "canned cycles" - not a current feature)
      */
-    enum WorkspacePlane { PLANE_XY, PLANE_ZX, PLANE_YZ };
+    enum WorkspacePlane : char { PLANE_XY, PLANE_ZX, PLANE_YZ };
     static WorkspacePlane workspace_plane;
   #endif
 
-  static millis_t previous_cmd_ms;
-  FORCE_INLINE static void refresh_cmd_timeout() { previous_cmd_ms = millis(); }
+  #define MAX_COORDINATE_SYSTEMS 9
+  #if ENABLED(CNC_COORDINATE_SYSTEMS)
+    static int8_t active_coordinate_system;
+    static float coordinate_system[MAX_COORDINATE_SYSTEMS][XYZ];
+    static bool select_coordinate_system(const int8_t _new);
+  #endif
+
+  static millis_t previous_move_ms;
+  FORCE_INLINE static void reset_stepper_timeout() { previous_move_ms = millis(); }
 
   static bool get_target_extruder_from_command();
   static void get_destination_from_command();
+  static void process_parsed_command();
   static void process_next_command();
 
-  static FORCE_INLINE void home_all_axes() { G28(true); }
+  FORCE_INLINE static void home_all_axes() { G28(true); }
 
   /**
    * Multi-stepper support for M92, M201, M203
@@ -290,7 +306,7 @@ public:
      * States for managing Marlin and host communication
      * Marlin sends messages if blocked or busy
      */
-    enum MarlinBusyState {
+    enum MarlinBusyState : char {
       NOT_BUSY,           // Not in a handler
       IN_HANDLER,         // Processing a GCode
       IN_PROCESS,         // Known to be blocking command input (as in G29)
@@ -348,7 +364,7 @@ private:
     static void G21();
   #endif
 
-  #if ENABLED(UBL_G26_MESH_VALIDATION)
+  #if ENABLED(G26_MESH_VALIDATION)
     static void G26();
   #endif
 
@@ -370,7 +386,7 @@ private:
     #endif
   #endif
 
-  #if PROBE_SELECTED && ENABLED(DELTA_AUTO_CALIBRATION)
+  #if ENABLED(DELTA_AUTO_CALIBRATION)
     static void G33();
   #endif
 
@@ -380,6 +396,16 @@ private:
 
   #if HAS_MESH
     static void G42();
+  #endif
+
+  #if ENABLED(CNC_COORDINATE_SYSTEMS)
+    static void G53();
+    static void G54();
+    static void G55();
+    static void G56();
+    static void G57();
+    static void G58();
+    static void G59();
   #endif
 
   static void G92();
@@ -433,7 +459,7 @@ private:
     static void M48();
   #endif
 
-  #if ENABLED(UBL_G26_MESH_VALIDATION)
+  #if ENABLED(G26_MESH_VALIDATION)
     static void M49();
   #endif
 
@@ -523,7 +549,7 @@ private:
     static void M150();
   #endif
 
-  #if ENABLED(AUTO_REPORT_TEMPERATURES) && (HAS_TEMP_HOTEND || HAS_TEMP_BED)
+  #if ENABLED(AUTO_REPORT_TEMPERATURES) && HAS_TEMP_SENSOR
     static void M155();
   #endif
 
@@ -583,6 +609,10 @@ private:
 
   #if HAS_SERVOS
     static void M280();
+  #endif
+
+  #if ENABLED(BABYSTEPPING)
+    static void M290();
   #endif
 
   #if HAS_BUZZER
@@ -652,6 +682,9 @@ private:
   #if DISABLED(DISABLE_M503)
     static void M503();
   #endif
+  #if ENABLED(EEPROM_SETTINGS)
+    static void M504();
+  #endif
 
   #if ENABLED(ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED)
     static void M540();
@@ -659,6 +692,7 @@ private:
 
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
     static void M600();
+    static void M603();
   #endif
 
   #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(DUAL_NOZZLE_DUPLICATION_MODE)
@@ -669,16 +703,21 @@ private:
     static void M665();
   #endif
 
-  #if ENABLED(DELTA) || ENABLED(Z_DUAL_ENDSTOPS)
+  #if ENABLED(DELTA) || ENABLED(X_DUAL_ENDSTOPS) || ENABLED(Y_DUAL_ENDSTOPS) || ENABLED(Z_DUAL_ENDSTOPS)
     static void M666();
   #endif
 
-  #if ENABLED(MK2_MULTIPLEXER)
+  #if ENABLED(FILAMENT_LOAD_UNLOAD_GCODES)
+    static void M701();
     static void M702();
   #endif
 
   #if HAS_BED_PROBE
     static void M851();
+  #endif
+
+  #if ENABLED(SKEW_CORRECTION_GCODE)
+    static void M852();
   #endif
 
   #if ENABLED(I2C_POSITION_ENCODERS)
@@ -698,7 +737,10 @@ private:
     static void M900();
   #endif
 
-  #if ENABLED(HAVE_TMC2130)
+  #if HAS_TRINAMIC
+    #if ENABLED(TMC_DEBUG)
+      static void M122();
+    #endif
     static void M906();
     static void M911();
     static void M912();
@@ -707,6 +749,9 @@ private:
     #endif
     #if ENABLED(SENSORLESS_HOMING)
       static void M914();
+    #endif
+    #if ENABLED(TMC_Z_CALIBRATION)
+      static void M915();
     #endif
   #endif
 

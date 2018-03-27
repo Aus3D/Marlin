@@ -12,17 +12,20 @@ if __name__ == "__main__":
                     "-ffreestanding",
                     "-fsigned-char",
                     "-fno-move-loop-invariants",
+                    "-fno-strict-aliasing",
 
                     "--specs=nano.specs",
                     "--specs=nosys.specs",
 
-                    "-IMarlin/src/HAL",
+                    # For external libraries
                     "-IMarlin/src/HAL/HAL_LPC1768/include",
+
+                    # For MarlinFirmware/U8glib-HAL
+                    "-IMarlin/src/HAL/HAL_LPC1768/u8g",
 
                     "-MMD",
                     "-MP",
-                    "-DTARGET_LPC1768",
-                    "-DIS_REARM"
+                    "-DTARGET_LPC1768"
                   ])
 
   for i in range(1, len(sys.argv)):

@@ -28,81 +28,155 @@
 #include <Stream.h>
 
 extern "C" {
-  #include <debug_frmwrk.h>
-  //#include <lpc17xx_uart.h>
+  #include <lpc17xx_uart.h>
+  #include "lpc17xx_pinsel.h"
 }
-
-#define IER_RBR   0x01
-#define IER_THRE  0x02
-#define IER_RLS   0x04
-
-#define IIR_PEND  0x01
-#define IIR_RLS   0x03
-#define IIR_RDA   0x02
-#define IIR_CTI   0x06
-#define IIR_THRE  0x01
-
-#define LSR_RDR   0x01
-#define LSR_OE    0x02
-#define LSR_PE    0x04
-#define LSR_FE    0x08
-#define LSR_BI    0x10
-#define LSR_THRE  0x20
-#define LSR_TEMT  0x40
-#define LSR_RXFE  0x80
-
-#define UARTRXQUEUESIZE   0x10
 
 class HardwareSerial : public Stream {
 private:
-uint8_t PortNum;
-uint32_t baudrate;
+  LPC_UART_TypeDef *UARTx;
+
+  uint32_t Baudrate;
+  uint32_t Status;
+  uint8_t RxBuffer[RX_BUFFER_SIZE];
+  uint32_t RxQueueWritePos;
+  uint32_t RxQueueReadPos;
+  #if TX_BUFFER_SIZE > 0
+    uint8_t TxBuffer[TX_BUFFER_SIZE];
+    uint32_t TxQueueWritePos;
+    uint32_t TxQueueReadPos;
+  #endif
 
 public:
-  HardwareSerial(uint32_t uart) :
-    PortNum(uart)
-    {
-    }
+  HardwareSerial(LPC_UART_TypeDef *UARTx)
+    : UARTx(UARTx)
+    , Baudrate(0)
+    , RxQueueWritePos(0)
+    , RxQueueReadPos(0)
+    #if TX_BUFFER_SIZE > 0
+      , TxQueueWritePos(0)
+      , TxQueueReadPos(0)
+    #endif
+  {
+  }
 
   void begin(uint32_t baudrate);
+  int peek();
   int read();
   size_t write(uint8_t send);
+  #if TX_BUFFER_SIZE > 0
+    void flushTX();
+  #endif
   int available();
   void flush();
   void printf(const char *format, ...);
-  int peek() {
-    return 0;
-  };
 
   operator bool() { return true; }
 
-  void print(const char value[])              { printf("%s" , value); }
-  void print(char value, int = 0)             { printf("%c" , value); }
-  void print(unsigned char value, int = 0)    { printf("%u" , value); }
-  void print(int value, int = 0)              { printf("%d" , value); }
-  void print(unsigned int value, int = 0)     { printf("%u" , value); }
-  void print(long value, int = 0)             { printf("%ld" , value); }
-  void print(unsigned long value, int = 0)    { printf("%lu" , value); }
+  void IRQHandler();
 
-  void print(float value, int round = 6)      { printf("%f" , value); }
-  void print(double value, int round = 6)     { printf("%f" , value ); }
+  #define DEC 10
+  #define HEX 16
+  #define OCT 8
+  #define BIN 2
 
-  void println(const char value[])            { printf("%s\n" , value); }
-  void println(char value, int = 0)           { printf("%c\n" , value); }
-  void println(unsigned char value, int = 0)  { printf("%u\r\n" , value); }
-  void println(int value, int = 0)            { printf("%d\n" , value); }
-  void println(unsigned int value, int = 0)   { printf("%u\n" , value); }
-  void println(long value, int = 0)           { printf("%ld\n" , value); }
-  void println(unsigned long value, int = 0)  { printf("%lu\n" , value); }
-  void println(float value, int round = 6)    { printf("%f\n" , value ); }
-  void println(double value, int round = 6)   { printf("%f\n" , value ); }
-  void println(void)                          { print('\n'); }
+  void print_bin(uint32_t value, uint8_t num_digits) {
+    uint32_t mask = 1 << (num_digits -1);
+    for (uint8_t i = 0; i < num_digits; i++) {
+      if (!(i % 4) && i)    printf(" ");
+      if (!(i % 16)  && i)  printf(" ");
+      if (value & mask)     printf("1");
+      else                  printf("0");
+      value <<= 1;
+    }
+  }
+
+  void print(const char value[]) {
+    printf("%s" , value);
+  }
+  void print(char value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,8);
+    else if (nbase == OCT) printf("%3o", value);
+    else if (nbase == HEX) printf("%2X", value);
+    else if (nbase == DEC ) printf("%d", value);
+    else printf("%c" , value);
+  }
+  void print(unsigned char value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,8);
+    else if (nbase == OCT) printf("%3o", value);
+    else if (nbase == HEX) printf("%2X", value);
+    else printf("%u" , value);
+  }
+  void print(int value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,16);
+    else if (nbase == OCT) printf("%6o", value);
+    else if (nbase == HEX) printf("%4X", value);
+    else printf("%d", value);
+  }
+  void print(unsigned int value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,16);
+    else if (nbase == OCT) printf("%6o", value);
+    else if (nbase == HEX) printf("%4X", value);
+    else printf("%u" , value);
+  }
+  void print(long value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,32);
+    else if (nbase == OCT) printf("%11o", value);
+    else if (nbase == HEX) printf("%8X", value);
+    else printf("%ld" , value);
+  }
+  void print(unsigned long value, int nbase = 0) {
+    if (nbase == BIN) print_bin(value,32);
+    else if (nbase == OCT) printf("%11o", value);
+    else if (nbase == HEX) printf("%8X", value);
+    else printf("%lu" , value);
+  }
+  void print(float value, int round = 6) {
+    printf("%f" , value);
+  }
+  void print(double value, int round = 6) {
+    printf("%f" , value );
+  }
+
+
+
+  void println(const char value[]) {
+    printf("%s\n" , value);
+  }
+  void println(char value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(unsigned char value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(int value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(unsigned int value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(long value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(unsigned long value, int nbase = 0) {
+    print(value, nbase);
+    println();
+  }
+  void println(float value, int round = 6) {
+    printf("%f\n" , value );
+  }
+  void println(double value, int round = 6) {
+    printf("%f\n" , value );
+  }
+  void println(void) {
+    print('\n');
+  }
 
 };
-
-//extern HardwareSerial Serial0;
-//extern HardwareSerial Serial1;
-//extern HardwareSerial Serial2;
-extern HardwareSerial Serial3;
 
 #endif // MARLIN_SRC_HAL_HAL_SERIAL_H_

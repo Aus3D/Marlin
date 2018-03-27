@@ -51,19 +51,42 @@
 // Defines
 // --------------------------------------------------------------------------
 
-#if SERIAL_PORT == 0
-  #define MYSERIAL SerialUSB
+#if !WITHIN(SERIAL_PORT, -1, 3)
+  #error "SERIAL_PORT must be from -1 to 3"
+#endif
+#if SERIAL_PORT == -1
+  #define MYSERIAL0 SerialUSB
+#elif SERIAL_PORT == 0
+  #define MYSERIAL0 SerialUART1
 #elif SERIAL_PORT == 1
-  #define MYSERIAL Serial
+  #define MYSERIAL0 SerialUART2
 #elif SERIAL_PORT == 2
-  #define MYSERIAL Serial1
+  #define MYSERIAL0 SerialUART3
 #elif SERIAL_PORT == 3
-  #define MYSERIAL Serial2
-#elif SERIAL_PORT == 4
-  #define MYSERIAL Serial3
+  #define MYSERIAL0 SerialUART4
 #endif
 
-#define _BV(bit) 	(1 << (bit))
+#ifdef SERIAL_PORT_2
+  #if !WITHIN(SERIAL_PORT_2, -1, 3)
+    #error "SERIAL_PORT_2 must be from -1 to 3"
+  #elif SERIAL_PORT_2 == SERIAL_PORT
+    #error "SERIAL_PORT_2 must be different than SERIAL_PORT"
+  #endif
+  #define NUM_SERIAL 2
+  #if SERIAL_PORT_2 == -1
+    #define MYSERIAL1 SerialUSB
+  #elif SERIAL_PORT_2 == 0
+    #define MYSERIAL1 SerialUART1
+  #elif SERIAL_PORT_2 == 1
+    #define MYSERIAL1 SerialUART2
+  #elif SERIAL_PORT_2 == 2
+    #define MYSERIAL1 SerialUART3
+  #elif SERIAL_PORT_2 == 3
+    #define MYSERIAL1 SerialUART4
+  #endif
+#else
+  #define NUM_SERIAL 1
+#endif
 
 /**
  * TODO: review this to return 1 for pins that are not analog input
@@ -97,6 +120,8 @@
 // --------------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------------
+
+typedef int8_t pin_t;
 
 // --------------------------------------------------------------------------
 // Public Variables
@@ -191,5 +216,9 @@ void HAL_enable_AdcFreerun(void);
 //void HAL_disable_AdcFreerun(uint8_t chan);
 
 */
+
+#define GET_PIN_MAP_PIN(index) index
+#define GET_PIN_MAP_INDEX(pin) pin
+#define PARSED_PIN_INDEX(code, dval) parser.intval(code, dval)
 
 #endif // _HAL_STM32F4_H

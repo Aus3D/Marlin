@@ -40,21 +40,28 @@
 
 #define FORCE_INLINE __attribute__((always_inline)) inline
 
-#define HAL_TIMER_TYPE uint32_t
+typedef uint32_t hal_timer_t;
 #define HAL_TIMER_TYPE_MAX 0xFFFFFFFF
 
 #define STEP_TIMER_NUM 0  // index of timer to use for stepper
 #define TEMP_TIMER_NUM 1  // index of timer to use for temperature
 
 #define HAL_TIMER_RATE         ((SystemCoreClock) / 4)  // frequency of timers peripherals
-#define STEPPER_TIMER_PRESCALE 1.0              // prescaler for setting stepper frequency
+#define STEPPER_TIMER_PRESCALE (CYCLES_PER_MICROSECOND / HAL_TICKS_PER_US)
 #define HAL_STEPPER_TIMER_RATE HAL_TIMER_RATE   // frequency of stepper timer (HAL_TIMER_RATE / STEPPER_TIMER_PRESCALE)
-#define HAL_TICKS_PER_US       ((HAL_STEPPER_TIMER_RATE) / 1000000) // stepper timer ticks per us
+#define HAL_TICKS_PER_US       ((HAL_STEPPER_TIMER_RATE) / 1000000) // stepper timer ticks per µs
 #define HAL_TEMP_TIMER_RATE    1000000
 #define TEMP_TIMER_FREQUENCY   1000 // temperature interrupt frequency
 
+#define STEP_TIMER_MIN_INTERVAL   8 // minimum time in µs between stepper interrupts
+
+#define PULSE_TIMER_NUM STEP_TIMER_NUM
+#define PULSE_TIMER_PRESCALE STEPPER_TIMER_PRESCALE
+
 #define ENABLE_STEPPER_DRIVER_INTERRUPT() HAL_timer_enable_interrupt(STEP_TIMER_NUM)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT() HAL_timer_disable_interrupt(STEP_TIMER_NUM)
+#define STEPPER_ISR_ENABLED() HAL_timer_interrupt_enabled(STEP_TIMER_NUM)
+
 #define ENABLE_TEMPERATURE_INTERRUPT() HAL_timer_enable_interrupt(TEMP_TIMER_NUM)
 #define DISABLE_TEMPERATURE_INTERRUPT() HAL_timer_disable_interrupt(TEMP_TIMER_NUM)
 
@@ -62,6 +69,11 @@
 
 #define HAL_STEP_TIMER_ISR  extern "C" void TIMER0_IRQHandler(void)
 #define HAL_TEMP_TIMER_ISR  extern "C" void TIMER1_IRQHandler(void)
+
+// PWM timer
+#define HAL_PWM_TIMER      LPC_TIM3
+#define HAL_PWM_TIMER_ISR  extern "C" void TIMER3_IRQHandler(void)
+#define HAL_PWM_TIMER_IRQn TIMER3_IRQn
 
 // --------------------------------------------------------------------------
 // Types
@@ -77,22 +89,22 @@
 void HAL_timer_init(void);
 void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency);
 
-static FORCE_INLINE void HAL_timer_set_count(const uint8_t timer_num, const HAL_TIMER_TYPE count) {
+FORCE_INLINE static void HAL_timer_set_compare(const uint8_t timer_num, const hal_timer_t compare) {
   switch (timer_num) {
     case 0:
-      LPC_TIM0->MR0 = count;
-      if (LPC_TIM0->TC > count)
-        LPC_TIM0->TC = count - 5; // generate an immediate stepper ISR
+      LPC_TIM0->MR0 = compare;
+      if (LPC_TIM0->TC > compare)
+        LPC_TIM0->TC = compare - 5; // generate an immediate stepper ISR
       break;
     case 1:
-      LPC_TIM1->MR0 = count;
-      if (LPC_TIM1->TC > count)
-        LPC_TIM1->TC = count - 5; // make sure we don't have one extra long period
+      LPC_TIM1->MR0 = compare;
+      if (LPC_TIM1->TC > compare)
+        LPC_TIM1->TC = compare - 5; // make sure we don't have one extra long period
       break;
   }
 }
 
-static FORCE_INLINE HAL_TIMER_TYPE HAL_timer_get_count(const uint8_t timer_num) {
+FORCE_INLINE static hal_timer_t HAL_timer_get_compare(const uint8_t timer_num) {
   switch (timer_num) {
     case 0: return LPC_TIM0->MR0;
     case 1: return LPC_TIM1->MR0;
@@ -100,7 +112,7 @@ static FORCE_INLINE HAL_TIMER_TYPE HAL_timer_get_count(const uint8_t timer_num) 
   return 0;
 }
 
-static FORCE_INLINE HAL_TIMER_TYPE HAL_timer_get_current_count(const uint8_t timer_num) {
+FORCE_INLINE static hal_timer_t HAL_timer_get_count(const uint8_t timer_num) {
   switch (timer_num) {
     case 0: return LPC_TIM0->TC;
     case 1: return LPC_TIM1->TC;
@@ -108,8 +120,14 @@ static FORCE_INLINE HAL_TIMER_TYPE HAL_timer_get_current_count(const uint8_t tim
   return 0;
 }
 
+FORCE_INLINE static void HAL_timer_restrain(const uint8_t timer_num, const uint16_t interval_ticks) {
+  const hal_timer_t mincmp = HAL_timer_get_count(timer_num) + interval_ticks;
+  if (HAL_timer_get_compare(timer_num) < mincmp) HAL_timer_set_compare(timer_num, mincmp);
+}
+
 void HAL_timer_enable_interrupt(const uint8_t timer_num);
 void HAL_timer_disable_interrupt(const uint8_t timer_num);
+bool HAL_timer_interrupt_enabled(const uint8_t timer_num);
 void HAL_timer_isr_prologue(const uint8_t timer_num);
 
 #endif // _HAL_TIMERS_DUE_H

@@ -44,11 +44,13 @@
  *         7 | 11
  */
 
-#if ENABLED(IS_REARM)
-  #error "Oops!  Use 'BOARD_RAMPS_RE_ARM' to build for Re-ARM."
+#if ENABLED(TARGET_LPC1768)
+  #error "Oops!  Set MOTHERBOARD to an LPC1768-based board when building for LPC1768."
+#elif defined(__STM32F1__)
+  #error "Oops!  Set MOTHERBOARD to an STM32F1-based board when building for STM32F1."
 #endif
 
-#if !ENABLED(IS_RAMPS_SMART) && !ENABLED(IS_RAMPS_DUO) && !ENABLED(IS_RAMPS4DUE) && !ENABLED(TARGET_LPC1768)
+#if DISABLED(IS_RAMPS_SMART) && DISABLED(IS_RAMPS_DUO) && DISABLED(IS_RAMPS4DUE) && DISABLED(TARGET_LPC1768)
   #if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
     #error "Oops!  Make sure you have 'Arduino Mega' selected from the 'Tools -> Boards' menu."
   #endif
@@ -57,8 +59,6 @@
 #ifndef BOARD_NAME
   #define BOARD_NAME "RAMPS 1.4"
 #endif
-
-#define LARGE_FLASH true
 
 //
 // Servos
@@ -99,27 +99,102 @@
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
 #define X_ENABLE_PIN       38
-#define X_CS_PIN           53
+#ifndef X_CS_PIN
+  #define X_CS_PIN         53
+#endif
 
 #define Y_STEP_PIN         60
 #define Y_DIR_PIN          61
 #define Y_ENABLE_PIN       56
-#define Y_CS_PIN           49
+#ifndef Y_CS_PIN
+  #define Y_CS_PIN         49
+#endif
 
 #define Z_STEP_PIN         46
 #define Z_DIR_PIN          48
 #define Z_ENABLE_PIN       62
-#define Z_CS_PIN           40
+#ifndef Z_CS_PIN
+  #define Z_CS_PIN         40
+#endif
 
 #define E0_STEP_PIN        26
 #define E0_DIR_PIN         28
 #define E0_ENABLE_PIN      24
-#define E0_CS_PIN          42
+#ifndef E0_CS_PIN
+  #define E0_CS_PIN        42
+#endif
 
 #define E1_STEP_PIN        36
 #define E1_DIR_PIN         34
 #define E1_ENABLE_PIN      30
-#define E1_CS_PIN          44
+#ifndef E1_CS_PIN
+  #define E1_CS_PIN        44
+#endif
+
+/**
+ * Default pins for TMC software SPI
+ */
+#if ENABLED(TMC_USE_SW_SPI)
+  #ifndef TMC_SW_MOSI
+    #define TMC_SW_MOSI    66
+  #endif
+  #ifndef TMC_SW_MISO
+    #define TMC_SW_MISO    44
+  #endif
+  #ifndef TMC_SW_SCK
+    #define TMC_SW_SCK     64
+  #endif
+#endif
+
+#if ENABLED(HAVE_TMC2208)
+  /**
+   * TMC2208 stepper drivers
+   *
+   * Hardware serial communication ports.
+   * If undefined software serial is used according to the pins below
+   */
+  //#define X_HARDWARE_SERIAL  Serial1
+  //#define X2_HARDWARE_SERIAL Serial1
+  //#define Y_HARDWARE_SERIAL  Serial1
+  //#define Y2_HARDWARE_SERIAL Serial1
+  //#define Z_HARDWARE_SERIAL  Serial1
+  //#define Z2_HARDWARE_SERIAL Serial1
+  //#define E0_HARDWARE_SERIAL Serial1
+  //#define E1_HARDWARE_SERIAL Serial1
+  //#define E2_HARDWARE_SERIAL Serial1
+  //#define E3_HARDWARE_SERIAL Serial1
+  //#define E4_HARDWARE_SERIAL Serial1
+
+  /**
+   * Software serial
+   */
+
+  #define X_SERIAL_TX_PIN    40
+  #define X_SERIAL_RX_PIN    63
+  #define X2_SERIAL_TX_PIN   -1
+  #define X2_SERIAL_RX_PIN   -1
+
+  #define Y_SERIAL_TX_PIN    59
+  #define Y_SERIAL_RX_PIN    64
+  #define Y2_SERIAL_TX_PIN   -1
+  #define Y2_SERIAL_RX_PIN   -1
+
+  #define Z_SERIAL_TX_PIN    42
+  #define Z_SERIAL_RX_PIN    65
+  #define Z2_SERIAL_TX_PIN   -1
+  #define Z2_SERIAL_RX_PIN   -1
+
+  #define E0_SERIAL_TX_PIN   44
+  #define E0_SERIAL_RX_PIN   66
+  #define E1_SERIAL_TX_PIN   -1
+  #define E1_SERIAL_RX_PIN   -1
+  #define E2_SERIAL_TX_PIN   -1
+  #define E2_SERIAL_RX_PIN   -1
+  #define E3_SERIAL_TX_PIN   -1
+  #define E3_SERIAL_RX_PIN   -1
+  #define E4_SERIAL_TX_PIN   -1
+  #define E4_SERIAL_RX_PIN   -1
+#endif
 
 //
 // Temperature Sensors
@@ -195,7 +270,7 @@
 #endif
 
 #ifndef FAN_PIN
-  #define FAN_PIN 4      // IO pin. Buffer needed
+  #define FAN_PIN           4   // IO pin. Buffer needed
 #endif
 
 //
@@ -209,14 +284,16 @@
 #endif
 
 // define digital pin 4 for the filament runout sensor. Use the RAMPS 1.4 digital input 4 on the servos connector
-#define FIL_RUNOUT_PIN      4
+#ifndef FIL_RUNOUT_PIN
+  #define FIL_RUNOUT_PIN    4
+#endif
 
 #ifndef PS_ON_PIN
   #define PS_ON_PIN        12
 #endif
 
-#if ENABLED(CASE_LIGHT_ENABLE) && !PIN_EXISTS(CASE_LIGHT) && !defined(SPINDLE_LASER_ENABLE_PIN)
-  #if !defined(NUM_SERVOS) || NUM_SERVOS == 0 // try to use servo connector first
+#if ENABLED(CASE_LIGHT_ENABLE) && !defined(CASE_LIGHT_PIN) && !defined(SPINDLE_LASER_ENABLE_PIN)
+  #if NUM_SERVOS <= 1 // try to use servo connector first
     #define CASE_LIGHT_PIN   6      // MUST BE HARDWARE PWM
   #elif !(ENABLED(ULTRA_LCD) && ENABLED(NEWPANEL) \
       && (ENABLED(PANEL_ONE) || ENABLED(VIKI2) || ENABLED(miniVIKI) || ENABLED(MINIPANEL) || ENABLED(REPRAPWORLD_KEYPAD)))  // try to use AUX 2
@@ -289,9 +366,18 @@
         #define BEEPER_PIN      37
       #endif
 
+    #elif ENABLED(ZONESTAR_LCD)
+
+      #define LCD_PINS_RS       64
+      #define LCD_PINS_ENABLE   44
+      #define LCD_PINS_D4       63
+      #define LCD_PINS_D5       40
+      #define LCD_PINS_D6       42
+      #define LCD_PINS_D7       65
+
     #else
 
-      #if ENABLED(MKS_12864OLED)
+      #if ENABLED(MKS_12864OLED) || ENABLED(MKS_12864OLED_SSD1306)
         #define LCD_PINS_DC     25 // Set as output on init
         #define LCD_PINS_RS     27 // Pull low for 1s to init
         // DOGM SPI LCD Support
@@ -456,6 +542,14 @@
       #define SDSS              53
       #define SD_DETECT_PIN     49
       #define KILL_PIN          64
+
+    #elif ENABLED(ZONESTAR_LCD)
+
+      #define ADC_KEYPAD_PIN    12
+
+    #elif ENABLED(AZSMZ_12864)
+
+      // Pins only defined for RAMPS_SMART currently
 
     #else
 

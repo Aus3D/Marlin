@@ -8,8 +8,6 @@
 
 #define BOARD_NAME            "CN Controls V12"
 
-//#define LARGE_FLASH true
-
 //
 // Limit Switches
 //
@@ -93,7 +91,9 @@
 
 // Common I/O
 
-#define FIL_RUNOUT_PIN     18
+#ifndef FIL_RUNOUT_PIN
+  #define FIL_RUNOUT_PIN   18
+#endif
 //#define PWM_1_PIN          12
 //#define PWM_2_PIN          13
 //#define SPARE_IO           17

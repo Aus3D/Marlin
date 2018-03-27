@@ -29,8 +29,6 @@
 #ifndef	_FASTIO_STM32F4_H
 #define	_FASTIO_STM32F4_H
 
-#define _BV(bit) 	(1 << (bit))
-
 #define READ(IO)              digitalRead(IO)
 #define WRITE(IO, v)          digitalWrite(IO,v)
 #define TOGGLE(IO)            digitalWrite(IO,!digitalRead(IO))

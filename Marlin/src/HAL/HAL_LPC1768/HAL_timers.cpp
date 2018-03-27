@@ -28,7 +28,7 @@
 
 #ifdef TARGET_LPC1768
 
-#include "../HAL.h"
+#include "../../inc/MarlinConfig.h"
 #include "HAL_timers.h"
 
 void HAL_timer_init(void) {
@@ -73,6 +73,14 @@ void HAL_timer_disable_interrupt(const uint8_t timer_num) {
     case 0: NVIC_DisableIRQ(TIMER0_IRQn); break; // disable interrupt handler
     case 1: NVIC_DisableIRQ(TIMER1_IRQn); break;
   }
+}
+
+bool HAL_timer_interrupt_enabled(const uint8_t timer_num) {
+  switch (timer_num) {
+    case 0: return NVIC_GetActive(TIMER0_IRQn);
+    case 1: return NVIC_GetActive(TIMER1_IRQn);
+  }
+  return false;
 }
 
 void HAL_timer_isr_prologue(const uint8_t timer_num) {

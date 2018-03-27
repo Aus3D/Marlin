@@ -22,54 +22,115 @@
 
 #include "../../../inc/MarlinConfig.h"
 
-#if ENABLED(HAVE_TMC2130)
+#if HAS_TRINAMIC
 
 #include "../../gcode.h"
-#include "../../../feature/tmc2130.h"
+#include "../../../feature/tmc_util.h"
 #include "../../../module/stepper_indirection.h"
-
-inline void tmc2130_get_current(TMC2130Stepper &st, const char name) {
-  SERIAL_CHAR(name);
-  SERIAL_ECHOPGM(" axis driver current: ");
-  SERIAL_ECHOLN(st.getCurrent());
-}
-inline void tmc2130_set_current(TMC2130Stepper &st, const char name, const int mA) {
-  st.setCurrent(mA, R_SENSE, HOLD_MULTIPLIER);
-  tmc2130_get_current(st, name);
-}
 
 /**
  * M906: Set motor current in milliamps using axis codes X, Y, Z, E
  * Report driver currents when no axis specified
- *
- * S1: Enable automatic current control
- * S0: Disable
  */
 void GcodeSuite::M906() {
-  uint16_t values[XYZE];
-  LOOP_XYZE(i)
-    values[i] = parser.intval(axis_codes[i]);
+  #define TMC_SAY_CURRENT(Q) tmc_get_current(stepper##Q, TMC_##Q)
+  #define TMC_SET_CURRENT(Q) tmc_set_current(stepper##Q, TMC_##Q, value)
 
-  #if ENABLED(X_IS_TMC2130)
-    if (values[X_AXIS]) tmc2130_set_current(stepperX, 'X', values[X_AXIS]);
-    else tmc2130_get_current(stepperX, 'X');
-  #endif
-  #if ENABLED(Y_IS_TMC2130)
-    if (values[Y_AXIS]) tmc2130_set_current(stepperY, 'Y', values[Y_AXIS]);
-    else tmc2130_get_current(stepperY, 'Y');
-  #endif
-  #if ENABLED(Z_IS_TMC2130)
-    if (values[Z_AXIS]) tmc2130_set_current(stepperZ, 'Z', values[Z_AXIS]);
-    else tmc2130_get_current(stepperZ, 'Z');
-  #endif
-  #if ENABLED(E0_IS_TMC2130)
-    if (values[E_AXIS]) tmc2130_set_current(stepperE0, 'E', values[E_AXIS]);
-    else tmc2130_get_current(stepperE0, 'E');
-  #endif
+  bool report = true;
+  const uint8_t index = parser.byteval('I');
+  LOOP_XYZE(i) if (uint16_t value = parser.intval(axis_codes[i])) {
+    report = false;
+    switch (i) {
+      case X_AXIS:
+        #if X_IS_TRINAMIC
+          if (index == 0) TMC_SET_CURRENT(X);
+        #endif
+        #if X2_IS_TRINAMIC
+          if (index == 1) TMC_SET_CURRENT(X2);
+        #endif
+        break;
+      case Y_AXIS:
+        #if Y_IS_TRINAMIC
+          if (index == 0) TMC_SET_CURRENT(Y);
+        #endif
+        #if Y2_IS_TRINAMIC
+          if (index == 1) TMC_SET_CURRENT(Y2);
+        #endif
+        break;
+      case Z_AXIS:
+        #if Z_IS_TRINAMIC
+          if (index == 0) TMC_SET_CURRENT(Z);
+        #endif
+        #if Z2_IS_TRINAMIC
+          if (index == 1) TMC_SET_CURRENT(Z2);
+        #endif
+        break;
+      case E_AXIS: {
+        if (get_target_extruder_from_command()) return;
+        switch (target_extruder) {
+          #if E0_IS_TRINAMIC
+            case 0: TMC_SET_CURRENT(E0); break;
+          #endif
+          #if E1_IS_TRINAMIC
+            case 1: TMC_SET_CURRENT(E1); break;
+          #endif
+          #if E2_IS_TRINAMIC
+            case 2: TMC_SET_CURRENT(E2); break;
+          #endif
+          #if E3_IS_TRINAMIC
+            case 3: TMC_SET_CURRENT(E3); break;
+          #endif
+          #if E4_IS_TRINAMIC
+            case 4: TMC_SET_CURRENT(E4); break;
+          #endif
+        }
+      } break;
+    }
+  }
 
-  #if ENABLED(AUTOMATIC_CURRENT_CONTROL)
-    if (parser.seen('S')) auto_current_control = parser.value_bool();
-  #endif
+  if (report) LOOP_XYZE(i) switch (i) {
+    case X_AXIS:
+      #if X_IS_TRINAMIC
+        TMC_SAY_CURRENT(X);
+      #endif
+      #if X2_IS_TRINAMIC
+        TMC_SAY_CURRENT(X2);
+      #endif
+      break;
+    case Y_AXIS:
+      #if Y_IS_TRINAMIC
+        TMC_SAY_CURRENT(Y);
+      #endif
+      #if Y2_IS_TRINAMIC
+        TMC_SAY_CURRENT(Y2);
+      #endif
+      break;
+    case Z_AXIS:
+      #if Z_IS_TRINAMIC
+        TMC_SAY_CURRENT(Z);
+      #endif
+      #if Z2_IS_TRINAMIC
+        TMC_SAY_CURRENT(Z2);
+      #endif
+      break;
+    case E_AXIS:
+      #if E0_IS_TRINAMIC
+        TMC_SAY_CURRENT(E0);
+      #endif
+      #if E1_IS_TRINAMIC
+        TMC_SAY_CURRENT(E1);
+      #endif
+      #if E2_IS_TRINAMIC
+        TMC_SAY_CURRENT(E2);
+      #endif
+      #if E3_IS_TRINAMIC
+        TMC_SAY_CURRENT(E3);
+      #endif
+      #if E4_IS_TRINAMIC
+        TMC_SAY_CURRENT(E4);
+      #endif
+      break;
+  }
 }
 
-#endif // HAVE_TMC2130
+#endif // HAS_TRINAMIC

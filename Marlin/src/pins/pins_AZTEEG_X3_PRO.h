@@ -41,7 +41,7 @@
   #error "Oops! Make sure you have 'Arduino Mega 2560' selected from the 'Tools -> Boards' menu."
 #endif
 
-//DIGIPOT slave addresses
+// DIGIPOT slave addresses
 #define DIGIPOT_I2C_ADDRESS_A 0x2C  // unshifted slave address for first DIGIPOT 0x2C (0x58 <- 0x2C << 1)
 #define DIGIPOT_I2C_ADDRESS_B 0x2E  // unshifted slave address for second DIGIPOT 0x2E (0x5C <- 0x2E << 1)
 
@@ -140,7 +140,7 @@
   #undef SD_DETECT_PIN
   #define SD_DETECT_PIN    49   // For easy adapter board
   #undef BEEPER_PIN
-  #define  BEEPER_PIN      12   // 33 isn't physically available to the LCD display
+  #define BEEPER_PIN       12   // 33 isn't physically available to the LCD display
 #else
   #define STAT_LED_RED_PIN  32
   #define STAT_LED_BLUE_PIN 35

@@ -23,8 +23,6 @@
 #ifndef __ENUM_H__
 #define __ENUM_H__
 
-#include "../inc/MarlinConfig.h"
-
 /**
  * Axis indices as enumerated constants
  *
@@ -33,8 +31,7 @@
  *  - X_HEAD and Y_HEAD is used for systems that don't have a 1:1 relationship
  *    between X_AXIS and X Head movement, like CoreXY bots
  */
-enum AxisEnum {
-  NO_AXIS   = -1,
+enum AxisEnum : unsigned char {
   X_AXIS    = 0,
   A_AXIS    = 0,
   Y_AXIS    = 1,
@@ -45,7 +42,8 @@ enum AxisEnum {
   X_HEAD    = 4,
   Y_HEAD    = 5,
   Z_HEAD    = 6,
-  ALL_AXES  = 100
+  ALL_AXES  = 0xFE,
+  NO_AXIS   = 0xFF
 };
 
 #define LOOP_S_LE_N(VAR, S, N) for (uint8_t VAR=S; VAR<=N; VAR++)
@@ -57,6 +55,9 @@ enum AxisEnum {
 #define LOOP_XYZ(VAR) LOOP_S_LE_N(VAR, X_AXIS, Z_AXIS)
 #define LOOP_XYZE(VAR) LOOP_S_LE_N(VAR, X_AXIS, E_AXIS)
 #define LOOP_XYZE_N(VAR) LOOP_S_L_N(VAR, X_AXIS, XYZE_N)
+#define LOOP_ABC(VAR) LOOP_S_LE_N(VAR, A_AXIS, C_AXIS)
+#define LOOP_ABCE(VAR) LOOP_S_LE_N(VAR, A_AXIS, E_AXIS)
+#define LOOP_ABCE_N(VAR) LOOP_S_L_N(VAR, A_AXIS, XYZE_N)
 
 typedef enum {
   LINEARUNIT_MM,
@@ -69,71 +70,20 @@ typedef enum {
   TEMPUNIT_F
 } TempUnit;
 
-#if ENABLED(EMERGENCY_PARSER)
-  enum e_parser_state {
-    state_RESET,
-    state_N,
-    state_M,
-    state_M1,
-    state_M10,
-    state_M108,
-    state_M11,
-    state_M112,
-    state_M4,
-    state_M41,
-    state_M410,
-    state_IGNORE // to '\n'
-  };
-#endif
-
-#if ENABLED(ADVANCED_PAUSE_FEATURE)
-  enum AdvancedPauseMenuResponse {
-    ADVANCED_PAUSE_RESPONSE_WAIT_FOR,
-    ADVANCED_PAUSE_RESPONSE_EXTRUDE_MORE,
-    ADVANCED_PAUSE_RESPONSE_RESUME_PRINT
-  };
-
-  #if ENABLED(ULTIPANEL)
-    enum AdvancedPauseMessage {
-      ADVANCED_PAUSE_MESSAGE_INIT,
-      ADVANCED_PAUSE_MESSAGE_UNLOAD,
-      ADVANCED_PAUSE_MESSAGE_INSERT,
-      ADVANCED_PAUSE_MESSAGE_LOAD,
-      ADVANCED_PAUSE_MESSAGE_EXTRUDE,
-      ADVANCED_PAUSE_MESSAGE_OPTION,
-      ADVANCED_PAUSE_MESSAGE_RESUME,
-      ADVANCED_PAUSE_MESSAGE_STATUS,
-      ADVANCED_PAUSE_MESSAGE_CLICK_TO_HEAT_NOZZLE,
-      ADVANCED_PAUSE_MESSAGE_WAIT_FOR_NOZZLES_TO_HEAT
-    };
-  #endif
-#endif
-
 /**
  * SD Card
  */
-enum LsAction { LS_SerialPrint, LS_Count, LS_GetFilename };
+enum LsAction : char { LS_SerialPrint, LS_Count, LS_GetFilename };
 
 /**
  * Ultra LCD
  */
-enum LCDViewAction {
+enum LCDViewAction : char {
   LCDVIEW_NONE,
   LCDVIEW_REDRAW_NOW,
   LCDVIEW_CALL_REDRAW_NEXT,
   LCDVIEW_CLEAR_CALL_REDRAW,
   LCDVIEW_CALL_NO_REDRAW
 };
-
-/**
- * Dual X Carriage modes. A Dual Nozzle can also do duplication.
- */
-#if ENABLED(DUAL_X_CARRIAGE) || ENABLED(DUAL_NOZZLE_DUPLICATION_MODE)
-  enum DualXMode {
-    DXC_FULL_CONTROL_MODE,  // DUAL_X_CARRIAGE only
-    DXC_AUTO_PARK_MODE,     // DUAL_X_CARRIAGE only
-    DXC_DUPLICATION_MODE
-  };
-#endif
 
 #endif // __ENUM_H__
