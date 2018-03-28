@@ -25,7 +25,7 @@ OR
 To flash the USB bootloader to an empty board, you will need:
 * The PicoPrint Board
 * A micro-USB cable
-* The bootloader firmware .dfu file (here)
+* The bootloader firmware .dfu file ([here](https://github.com/chrissbarr/PicoPrint-Bootloader/releases))
 * The DfuSeDemo application ([here](http://www.st.com/en/development-tools/stsw-stm32080.html), bottom of page - "Get Software")
 
 Depending on how lucky you are with which drivers are automatically installed, you will likely also need the Zadig USB driver selection tool, [here](http://zadig.akeo.ie/).
