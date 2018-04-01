@@ -30,7 +30,6 @@
 // --------------------------------------------------------------------------
 
 #include "../HAL.h"
-
 #include "HAL_timers_STM32F4.h"
 
 // --------------------------------------------------------------------------
@@ -43,11 +42,9 @@
 
 #define NUM_HARDWARE_TIMERS 2
 
-//#define PRESCALER 1
 // --------------------------------------------------------------------------
 // Types
 // --------------------------------------------------------------------------
-
 
 // --------------------------------------------------------------------------
 // Public Variables
@@ -58,6 +55,7 @@
 // --------------------------------------------------------------------------
 
 tTimerConfig timerConfig[NUM_HARDWARE_TIMERS];
+bool timers_initialised[NUM_HARDWARE_TIMERS] = {false};
 
 // --------------------------------------------------------------------------
 // Function prototypes
@@ -71,45 +69,32 @@ tTimerConfig timerConfig[NUM_HARDWARE_TIMERS];
 // Public functions
 // --------------------------------------------------------------------------
 
-/*
-Timer_clock1: Prescaler 1 -> 80MHz
-Timer_clock1: Prescaler 2 -> 40MHz
-Timer_clock2: Prescaler 8 -> 10MHz
-Timer_clock3: Prescaler 32 -> 2.5MHz
-*/
-
-/**
- * TODO: Calculate Timer prescale value, so we get the 32bit to adjust
- */
-bool timers_initialised[NUM_HARDWARE_TIMERS] = {false};
-
 void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
-
   if(!timers_initialised[timer_num]) {
     switch (timer_num) {
       case STEP_TIMER_NUM:
       //STEPPER TIMER TIM5 //use a 32bit timer 
       __HAL_RCC_TIM5_CLK_ENABLE();
-      timerConfig[0].timerdef.Instance               = TIM5;
-      timerConfig[0].timerdef.Init.Prescaler         = (STEPPER_TIMER_PRESCALE);
-      timerConfig[0].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;
-      timerConfig[0].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-      timerConfig[0].IRQ_Id = TIM5_IRQn;
-      timerConfig[0].callback = (uint32_t)TC5_Handler;
-      HAL_NVIC_SetPriority(timerConfig[0].IRQ_Id, 1, 0);
+      timerConfig[STEP_TIMER_NUM].timerdef.Instance               = TIM5;
+      timerConfig[STEP_TIMER_NUM].timerdef.Init.Prescaler         = (STEPPER_TIMER_PRESCALE);
+      timerConfig[STEP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;
+      timerConfig[STEP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+      timerConfig[STEP_TIMER_NUM].IRQ_Id                          = TIM5_IRQn;
+      timerConfig[STEP_TIMER_NUM].callback                        = (uint32_t)TC5_Handler;
+      HAL_NVIC_SetPriority(timerConfig[STEP_TIMER_NUM].IRQ_Id, 1, 0);
       pinMode(STEPPER_ENABLE_PIN,OUTPUT);
       digitalWrite(STEPPER_ENABLE_PIN,LOW);
       break;
     case TEMP_TIMER_NUM:
       //TEMP TIMER TIM7 // any available 16bit Timer (1 already used for PWM)
       __HAL_RCC_TIM7_CLK_ENABLE();
-      timerConfig[1].timerdef.Instance               = TIM7;
-      timerConfig[1].timerdef.Init.Prescaler         = (TEMP_TIMER_PRESCALE); 
-      timerConfig[1].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;   
-      timerConfig[1].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-      timerConfig[1].IRQ_Id = TIM7_IRQn;
-      timerConfig[1].callback = (uint32_t)TC7_Handler;
-      HAL_NVIC_SetPriority(timerConfig[1].IRQ_Id, 2, 0);
+      timerConfig[TEMP_TIMER_NUM].timerdef.Instance               = TIM7;
+      timerConfig[TEMP_TIMER_NUM].timerdef.Init.Prescaler         = (TEMP_TIMER_PRESCALE); 
+      timerConfig[TEMP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;   
+      timerConfig[TEMP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+      timerConfig[TEMP_TIMER_NUM].IRQ_Id                          = TIM7_IRQn;
+      timerConfig[TEMP_TIMER_NUM].callback                        = (uint32_t)TC7_Handler;
+      HAL_NVIC_SetPriority(timerConfig[TEMP_TIMER_NUM].IRQ_Id, 2, 0);
       break;
     }
     timers_initialised[timer_num] = true;
@@ -117,10 +102,9 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
 
   timerConfig[timer_num].timerdef.Init.Period =  ((HAL_TIMER_RATE / timerConfig[timer_num].timerdef.Init.Prescaler) / (frequency)) - 1;
 
-  if(HAL_TIM_Base_Init(&timerConfig[timer_num].timerdef)  == HAL_OK ){
+  if(HAL_TIM_Base_Init(&timerConfig[timer_num].timerdef) == HAL_OK ) {
     HAL_TIM_Base_Start_IT(&timerConfig[timer_num].timerdef);
   } 
-
 }
 
 //forward the interrupt
@@ -134,7 +118,6 @@ extern "C" void TIM7_IRQHandler()
 }
 
 void HAL_timer_set_compare(uint8_t timer_num, uint32_t compare) {
-  //timerConfig[timer_num].timerdef.Instance->ARR = compare;
   __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, compare);
 
   if(timerConfig[timer_num].timerdef.Instance->CNT > compare) {
@@ -154,7 +137,7 @@ hal_timer_t HAL_timer_get_compare(uint8_t timer_num) {
   return __HAL_TIM_GetAutoreload(&timerConfig[timer_num].timerdef);
 }
 
-uint32_t HAL_timer_get_current_count(uint8_t timer_num) {
+uint32_t HAL_timer_get_count(uint8_t timer_num) {
   return __HAL_TIM_GetCounter(&timerConfig[timer_num].timerdef);
 }
 
@@ -172,4 +155,4 @@ bool HAL_timer_interrupt_enabled(const uint8_t timer_num) {
   return false;
 }
 
-#endif // __STM32F1__
+#endif // __STM32F4__
