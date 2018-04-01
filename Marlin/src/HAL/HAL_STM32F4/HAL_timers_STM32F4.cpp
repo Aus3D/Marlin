@@ -75,7 +75,7 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
       case STEP_TIMER_NUM:
       //STEPPER TIMER TIM5 //use a 32bit timer 
       __HAL_RCC_TIM5_CLK_ENABLE();
-      timerConfig[STEP_TIMER_NUM].timerdef.Instance               = TIM5;
+      timerConfig[STEP_TIMER_NUM].timerdef.Instance               = STEP_TIMER;
       timerConfig[STEP_TIMER_NUM].timerdef.Init.Prescaler         = (STEPPER_TIMER_PRESCALE);
       timerConfig[STEP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;
       timerConfig[STEP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
@@ -87,7 +87,7 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
     case TEMP_TIMER_NUM:
       //TEMP TIMER TIM7 // any available 16bit Timer (1 already used for PWM)
       __HAL_RCC_TIM7_CLK_ENABLE();
-      timerConfig[TEMP_TIMER_NUM].timerdef.Instance               = TIM7;
+      timerConfig[TEMP_TIMER_NUM].timerdef.Instance               = TEMP_TIMER;
       timerConfig[TEMP_TIMER_NUM].timerdef.Init.Prescaler         = (TEMP_TIMER_PRESCALE); 
       timerConfig[TEMP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;   
       timerConfig[TEMP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
@@ -98,39 +98,22 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
     timers_initialised[timer_num] = true;
   }
 
-  timerConfig[timer_num].timerdef.Init.Period =  ((HAL_TIMER_RATE / timerConfig[timer_num].timerdef.Init.Prescaler) / (frequency)) - 1;
+  timerConfig[timer_num].timerdef.Init.Period = ((HAL_TIMER_RATE / timerConfig[timer_num].timerdef.Init.Prescaler) / (frequency)) - 1;
 
-  if(HAL_TIM_Base_Init(&timerConfig[timer_num].timerdef) == HAL_OK ) {
+  if(HAL_TIM_Base_Init(&timerConfig[timer_num].timerdef) == HAL_OK) {
     HAL_TIM_Base_Start_IT(&timerConfig[timer_num].timerdef);
   } 
 }
 
-
-void HAL_timer_set_compare(uint8_t timer_num, uint32_t compare) {
-  __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, compare);
-
-  if(timerConfig[timer_num].timerdef.Instance->CNT > compare) {
-    timerConfig[timer_num].timerdef.Instance->CNT = compare - 5;
-  }
-}
-
-void HAL_timer_enable_interrupt (uint8_t timer_num) {
+void HAL_timer_enable_interrupt(uint8_t timer_num) {
   HAL_NVIC_EnableIRQ(timerConfig[timer_num].IRQ_Id);
 }
 
-void HAL_timer_disable_interrupt (uint8_t timer_num) {
+void HAL_timer_disable_interrupt(uint8_t timer_num) {
   HAL_NVIC_DisableIRQ(timerConfig[timer_num].IRQ_Id);
 }
 
-hal_timer_t HAL_timer_get_compare(uint8_t timer_num) {
-  return __HAL_TIM_GetAutoreload(&timerConfig[timer_num].timerdef);
-}
-
-uint32_t HAL_timer_get_count(uint8_t timer_num) {
-  return __HAL_TIM_GetCounter(&timerConfig[timer_num].timerdef);
-}
-
-void HAL_timer_isr_prologue (uint8_t timer_num) {
+void HAL_timer_isr_prologue(uint8_t timer_num) {
   if (__HAL_TIM_GET_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE) == SET) {
     __HAL_TIM_CLEAR_FLAG(&timerConfig[timer_num].timerdef, TIM_FLAG_UPDATE);
   }

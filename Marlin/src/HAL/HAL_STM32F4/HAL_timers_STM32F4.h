@@ -45,6 +45,9 @@ typedef uint32_t hal_timer_t;       //TODO: One is 16-bit, one 32-bit - does thi
 #define STEP_TIMER_NUM 0  // index of timer to use for stepper
 #define TEMP_TIMER_NUM 1  // index of timer to use for temperature
 
+#define STEP_TIMER TIM5
+#define TEMP_TIMER TIM7
+
 #define HAL_TIMER_RATE         (HAL_RCC_GetSysClockFreq()/2)  // frequency of timer peripherals
 #define STEPPER_TIMER_PRESCALE 45            // prescaler for setting stepper timer (180MHz / 2 / 45 = 2MHz)
 #define HAL_STEPPER_TIMER_RATE (HAL_TIMER_RATE / STEPPER_TIMER_PRESCALE)   // frequency of stepper timer (HAL_TIMER_RATE / STEPPER_TIMER_PRESCALE)
@@ -88,15 +91,44 @@ typedef struct {
 // Public functions
 // --------------------------------------------------------------------------
 
-void HAL_timer_start (uint8_t timer_num, uint32_t frequency);
-void HAL_timer_enable_interrupt(uint8_t timer_num);
-void HAL_timer_disable_interrupt(uint8_t timer_num);
+void HAL_timer_start(const uint8_t timer_num, uint32_t frequency);
+void HAL_timer_enable_interrupt(const uint8_t timer_num);
+void HAL_timer_disable_interrupt(const uint8_t timer_num);
 bool HAL_timer_interrupt_enabled(const uint8_t timer_num);
+void HAL_timer_isr_prologue(const uint8_t timer_num);
 
-void HAL_timer_set_compare(uint8_t timer_num, uint32_t count);
-hal_timer_t HAL_timer_get_compare(uint8_t timer_num);
-uint32_t HAL_timer_get_count(uint8_t timer_num);
-void HAL_timer_isr_prologue (uint8_t timer_num);
+FORCE_INLINE static void HAL_timer_set_compare(const uint8_t timer_num, const hal_timer_t compare) {
+  switch (timer_num) {
+    case STEP_TIMER_NUM: 
+      STEP_TIMER->ARR = compare;
+      if (STEP_TIMER->CNT >= compare) {
+        STEP_TIMER->CNT = compare - 5;
+      }
+      break;
+    case TEMP_TIMER_NUM:
+      TEMP_TIMER->ARR = compare;
+      if (TEMP_TIMER->CNT >= compare) {
+        TEMP_TIMER->CNT = compare - 5;
+      }
+      break;
+  }
+}
+
+FORCE_INLINE static hal_timer_t HAL_timer_get_compare(const uint8_t timer_num) {
+  switch (timer_num) {
+    case STEP_TIMER_NUM: return STEP_TIMER->ARR;
+    case TEMP_TIMER_NUM: return TEMP_TIMER->ARR;
+  }
+  return 0;
+}
+
+FORCE_INLINE static hal_timer_t HAL_timer_get_count(const uint8_t timer_num) {
+  switch (timer_num) {
+    case STEP_TIMER_NUM: return STEP_TIMER->CNT;
+    case TEMP_TIMER_NUM: return TEMP_TIMER->CNT;
+  }
+  return 0;
+}
 
 FORCE_INLINE static void HAL_timer_restrain(const uint8_t timer_num, const uint16_t interval_ticks) {
   const hal_timer_t mincmp = HAL_timer_get_count(timer_num) + interval_ticks;
