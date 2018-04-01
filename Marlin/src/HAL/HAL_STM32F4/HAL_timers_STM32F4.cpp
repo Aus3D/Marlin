@@ -80,7 +80,6 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
       timerConfig[STEP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;
       timerConfig[STEP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
       timerConfig[STEP_TIMER_NUM].IRQ_Id                          = TIM5_IRQn;
-      timerConfig[STEP_TIMER_NUM].callback                        = (uint32_t)TC5_Handler;
       HAL_NVIC_SetPriority(timerConfig[STEP_TIMER_NUM].IRQ_Id, 1, 0);
       pinMode(STEPPER_ENABLE_PIN,OUTPUT);
       digitalWrite(STEPPER_ENABLE_PIN,LOW);
@@ -93,7 +92,6 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
       timerConfig[TEMP_TIMER_NUM].timerdef.Init.CounterMode       = TIM_COUNTERMODE_UP;   
       timerConfig[TEMP_TIMER_NUM].timerdef.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
       timerConfig[TEMP_TIMER_NUM].IRQ_Id                          = TIM7_IRQn;
-      timerConfig[TEMP_TIMER_NUM].callback                        = (uint32_t)TC7_Handler;
       HAL_NVIC_SetPriority(timerConfig[TEMP_TIMER_NUM].IRQ_Id, 2, 0);
       break;
     }
@@ -107,15 +105,6 @@ void HAL_timer_start(uint8_t timer_num, uint32_t frequency) {
   } 
 }
 
-//forward the interrupt
-extern "C" void TIM5_IRQHandler()
-{
-    ((void(*)(void))timerConfig[0].callback)();
-}
-extern "C" void TIM7_IRQHandler()
-{
-    ((void(*)(void))timerConfig[1].callback)();
-}
 
 void HAL_timer_set_compare(uint8_t timer_num, uint32_t compare) {
   __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, compare);

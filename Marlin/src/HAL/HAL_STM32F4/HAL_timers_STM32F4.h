@@ -66,10 +66,8 @@ typedef uint32_t hal_timer_t;       //TODO: One is 16-bit, one 32-bit - does thi
 
 #define HAL_ENABLE_ISRs() do { if (thermalManager.in_temp_isr)DISABLE_TEMPERATURE_INTERRUPT(); else ENABLE_TEMPERATURE_INTERRUPT(); ENABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
 
-extern void TC5_Handler();
-extern void TC7_Handler();
-#define HAL_STEP_TIMER_ISR  void TC5_Handler()
-#define HAL_TEMP_TIMER_ISR  void TC7_Handler()
+#define HAL_STEP_TIMER_ISR  extern "C" void TIM5_IRQHandler()//void TC5_Handler()
+#define HAL_TEMP_TIMER_ISR  extern "C" void TIM7_IRQHandler()//void TC7_Handler()
 
 // --------------------------------------------------------------------------
 // Types
@@ -78,7 +76,6 @@ extern void TC7_Handler();
 typedef struct {
   TIM_HandleTypeDef timerdef;
   IRQn_Type   IRQ_Id;
-  uint32_t callback;
 } tTimerConfig;
 
 // --------------------------------------------------------------------------
