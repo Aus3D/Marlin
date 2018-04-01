@@ -133,8 +133,13 @@ extern "C" void TIM7_IRQHandler()
     ((void(*)(void))timerConfig[1].callback)();
 }
 
-void HAL_timer_set_compare(uint8_t timer_num, uint32_t count) {
-  __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, count);
+void HAL_timer_set_compare(uint8_t timer_num, uint32_t compare) {
+  //timerConfig[timer_num].timerdef.Instance->ARR = compare;
+  __HAL_TIM_SetAutoreload(&timerConfig[timer_num].timerdef, compare);
+
+  if(timerConfig[timer_num].timerdef.Instance->CNT > compare) {
+    timerConfig[timer_num].timerdef.Instance->CNT = compare - 5;
+  }
 }
 
 void HAL_timer_enable_interrupt (uint8_t timer_num) {
