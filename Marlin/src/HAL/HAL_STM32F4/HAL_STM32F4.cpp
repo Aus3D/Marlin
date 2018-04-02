@@ -33,8 +33,6 @@
 
 #include "../HAL.h"
 
-//#include <Wire.h>
-
 // --------------------------------------------------------------------------
 // Externals
 // --------------------------------------------------------------------------
@@ -73,14 +71,6 @@ uint16_t HAL_adc_result;
 // Public functions
 // --------------------------------------------------------------------------
 
-/* VGPV Done with defines
-// disable interrupts
-void cli(void) { noInterrupts(); }
-
-// enable interrupts
-void sei(void) { interrupts(); }
-*/
-
 void HAL_clear_reset_source(void) { __HAL_RCC_CLEAR_RESET_FLAGS(); }
 
 uint8_t HAL_get_reset_source (void) {
@@ -101,37 +91,12 @@ uint8_t HAL_get_reset_source (void) {
 
 void _delay_ms(const int delay_ms) { delay(delay_ms); }
 
-extern "C" {
-  extern unsigned int _ebss; // end of bss section
+extern "C" char* _sbrk(int incr);
+
+int freeMemory() {
+  volatile char top;
+  return &top - reinterpret_cast<char*>(_sbrk(0));
 }
-
-/**
- * TODO: Change this to correct it for libmaple
- */
-
-// return free memory between end of heap (or end bss) and whatever is current
-
-/*
-#include "wirish/syscalls.c"
-//extern caddr_t _sbrk(int incr);
-#ifndef CONFIG_HEAP_END
-extern char _lm_heap_end;
-#define CONFIG_HEAP_END ((caddr_t)&_lm_heap_end)
-#endif
-
-extern "C" {
-  static int freeMemory() {
-    char top = 't';
-    return &top - reinterpret_cast<char*>(sbrk(0));
-  }
-  int freeMemory() {
-    int free_memory;
-    int heap_end = (int)_sbrk(0);
-    free_memory = ((int)&free_memory) - ((int)heap_end);
-    return free_memory;
-  }
-}
-*/
 
 // --------------------------------------------------------------------------
 // ADC

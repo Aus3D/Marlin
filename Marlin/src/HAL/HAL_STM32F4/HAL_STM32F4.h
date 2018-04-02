@@ -127,83 +127,38 @@ typedef int8_t pin_t;
 // Public Variables
 // --------------------------------------------------------------------------
 
-/** result of last ADC conversion */
-extern uint16_t HAL_adc_result;
+extern uint16_t HAL_adc_result;   // Result of last ADC conversion
 
 // --------------------------------------------------------------------------
 // Public functions
 // --------------------------------------------------------------------------
 
-// Disable interrupts
-#define cli() do {  DISABLE_TEMPERATURE_INTERRUPT(); DISABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
-
-// Enable interrupts
-#define sei() do {  ENABLE_TEMPERATURE_INTERRUPT(); ENABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)
+#define cli() do {  DISABLE_TEMPERATURE_INTERRUPT(); DISABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)     // Disable interrupts
+#define sei() do {  ENABLE_TEMPERATURE_INTERRUPT(); ENABLE_STEPPER_DRIVER_INTERRUPT(); } while(0)       // Enable interrupts
 
 // Memory related
 #define __bss_end __bss_end__
 
-/** clear reset reason */
-void HAL_clear_reset_source (void);
-
-/** reset reason */
-uint8_t HAL_get_reset_source (void);
+void HAL_clear_reset_source(void);   // Clear reset reason
+uint8_t HAL_get_reset_source(void);  // Get reset reason
 
 void _delay_ms(const int delay);
 
-/*
-extern "C" {
-  int freeMemory(void);
-}
-*/
-
-extern "C" char* _sbrk(int incr);
-/*
-static int freeMemory() {
-  volatile int top;
-  top = (int)((char*)&top - reinterpret_cast<char*>(_sbrk(0)));
-  return top;
-}
-*/
-static int freeMemory() {
-  volatile char top;
-  return &top - reinterpret_cast<char*>(_sbrk(0));
-}
+int freeMemory(void);
 
 // SPI: Extended functions which take a channel number (hardware SPI only)
-/** Write single byte to specified SPI channel */
-void spiSend(uint32_t chan, byte b);
-/** Write buffer to specified SPI channel */
-void spiSend(uint32_t chan, const uint8_t* buf, size_t n);
-/** Read single byte from specified SPI channel */
-uint8_t spiRec(uint32_t chan);
+void spiSend(uint32_t chan, byte b);                        // Write single byte to specified SPI channel
+void spiSend(uint32_t chan, const uint8_t* buf, size_t n);  // Write buffer to specified SPI channel
+uint8_t spiRec(uint32_t chan);                              //Read single byte from specified SPI channel
 
 // ADC
-
-#define HAL_ANALOG_SELECT(pin) pinMode(pin, INPUT)
+#define HAL_ANALOG_SELECT(pin)  pinMode(pin, INPUT)
+#define HAL_START_ADC(pin)      HAL_adc_start_conversion(pin)
+#define HAL_READ_ADC            HAL_adc_result
 
 inline void HAL_adc_init(void) {}
-
-#define HAL_START_ADC(pin)  HAL_adc_start_conversion(pin)
-#define HAL_READ_ADC        HAL_adc_result
-
 void HAL_adc_start_conversion(const uint8_t adc_pin);
-
 uint16_t HAL_adc_get_result(void);
-
-/* Todo: Confirm none of this is needed.
-uint16_t HAL_getAdcReading(uint8_t chan);
-
-void HAL_startAdcConversion(uint8_t chan);
-uint8_t HAL_pinToAdcChannel(int pin);
-
-uint16_t HAL_getAdcFreerun(uint8_t chan, bool wait_for_conversion = false);
-//uint16_t HAL_getAdcSuperSample(uint8_t chan);
-
-void HAL_enable_AdcFreerun(void);
-//void HAL_disable_AdcFreerun(uint8_t chan);
-
-*/
 
 #define GET_PIN_MAP_PIN(index) index
 #define GET_PIN_MAP_INDEX(pin) pin
