@@ -26,28 +26,28 @@
 
 #if ENABLED(USE_WATCHDOG)
 
-    #include "watchdog_STM32F4.h"
+  #include "watchdog_STM32F4.h"
 
-	IWDG_HandleTypeDef hiwdg;
+  IWDG_HandleTypeDef hiwdg;
 
-    void watchdog_init() {
-		hiwdg.Instance = IWDG;
-		hiwdg.Init.Prescaler = IWDG_PRESCALER_32;	//32kHz LSI clock and 32x prescalar = 1024Hz IWDG clock
-		hiwdg.Init.Reload = 4095; 					//4095 counts = 4 seconds at 1024Hz
-		if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
-		{
-			//Error_Handler();
-		}
+  void watchdog_init() {
+    hiwdg.Instance = IWDG;
+    hiwdg.Init.Prescaler = IWDG_PRESCALER_32; //32kHz LSI clock and 32x prescalar = 1024Hz IWDG clock
+    hiwdg.Init.Reload = 4095;           //4095 counts = 4 seconds at 1024Hz
+    if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+    {
+      //Error_Handler();
     }
+  }
 
-    void watchdog_reset() {
-		/* Refresh IWDG: reload counter */
-		if (HAL_IWDG_Refresh(&hiwdg) != HAL_OK)
-		{
-			/* Refresh Error */
-			//Error_Handler();
-		}
+  void watchdog_reset() {
+    /* Refresh IWDG: reload counter */
+    if (HAL_IWDG_Refresh(&hiwdg) != HAL_OK)
+    {
+      /* Refresh Error */
+      //Error_Handler();
     }
+  }
 
 
 #endif // USE_WATCHDOG
