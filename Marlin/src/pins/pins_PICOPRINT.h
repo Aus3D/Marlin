@@ -33,6 +33,8 @@
 
 #define LARGE_FLASH true
 
+#define E2END 0xFFF // EEPROM end address, 4kB
+
 // Ignore temp readings during develpment.
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 
