@@ -153,7 +153,6 @@
 //
 // Misc. Functions
 //
-//#define SDSS               53
 #define LED_PIN            _STM32_PIN(PORTA, 2)
 #define PS_ON_PIN          _STM32_PIN(PORTA, 3)
 #define KILL_PIN           -1//_STM32_PIN(PORTD, 5)
@@ -161,7 +160,8 @@
 //
 // LCD / Controller
 //
-#define SD_DETECT_PIN      -1//49
+#define SDSS               _STM32_PIN(PORTB, 6)
+#define SD_DETECT_PIN      _STM32_PIN(PORTB, 7)
 #define BEEPER_PIN         _STM32_PIN(PORTC, 9)
 #define LCD_PINS_RS        _STM32_PIN(PORTC, 12)
 #define LCD_PINS_ENABLE    _STM32_PIN(PORTD, 7)
