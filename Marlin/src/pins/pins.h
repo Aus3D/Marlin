@@ -445,6 +445,8 @@
   #include "pins_ARMED.h"             // STM32F4                                    env:ARMED
 #elif MB(RUMBA32)
   #include "pins_RUMBA32.h"           // STM32F4                                    env:RUMBA32
+#elif MB(PICOPRINT)
+  #include "pins_PICOPRINT.h"         // STM32F4                                    env:RUMBA32
 #elif MB(BLACK_STM32F407VE)
   #include "pins_BLACK_STM32F407VE.h" // STM32F4                                    env:black_stm32f407ve
 #elif MB(STEVAL)
