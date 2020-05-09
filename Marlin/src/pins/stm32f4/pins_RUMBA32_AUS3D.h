@@ -39,4 +39,10 @@
 #define RUMBA32_V1_0
 //#define I2C_EEPROM
 
+// Use one of these or SDCard-based Emulation will be used
+#if NO_EEPROM_SELECTED
+  //#define SRAM_EEPROM_EMULATION                 // Use BackSRAM-based EEPROM emulation
+  #define FLASH_EEPROM_EMULATION                  // Use Flash-based EEPROM emulation
+#endif
+
 #include "pins_RUMBA32_common.h"
